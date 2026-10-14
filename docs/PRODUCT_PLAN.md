@@ -1,5 +1,7 @@
 # Two-person habit and rewards app: product and technical plan
 
+> **Implementation decision, 14 October 2026:** The backend is now a separate NestJS API with Prisma and Neon PostgreSQL. Vercel is the initial hosting target, and the planned primary client is a separate React Native + Expo app for Android/iOS. Flutter is excluded for now. The current JWT adapter uses Supabase Auth independently of the Neon database; production authentication settings are pending. This supersedes the PWA-first/client and database recommendations below. See [the current hosting and mobile plan](DEPLOYMENT_AND_MOBILE_PLAN.md).
+
 **Status:** decision draft for Sanket and partner  
 **Prepared:** 3 October 2026  
 **First audience:** exactly two adults in one private pair
