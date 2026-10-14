@@ -1,0 +1,19 @@
+{
+  "name": "pair-habits",
+  "private": true,
+  "workspaces": ["backend"],
+  "engines": { "node": ">=24.9.0" },
+  "overrides": { "deepmerge-ts": "8.0.2" },
+  "scripts": {
+    "dev": "npm run dev --workspace backend",
+    "build": "npm run build --workspace backend",
+    "test": "npm run test --workspace backend",
+    "test:integration": "npm run test:integration --workspace backend",
+    "typecheck": "npm run typecheck --workspace backend",
+    "db:generate": "npm run db:generate --workspace backend",
+    "db:check": "npm run db:check --workspace backend",
+    "db:migrate": "npm run db:migrate --workspace backend",
+    "local:token": "npm run local:token --workspace backend --",
+    "local:setup": "npm run local:setup --workspace backend"
+  }
+}

@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+enum GoalStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+
+enum RewardStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+
+enum RedemptionStatus {
+  REQUESTED
+  FULFILLED
+}
+
+enum LedgerReason {
+  WEEKLY_AWARD
+  REWARD_REDEMPTION
+}
+
+model User {
+  id                 String       @id @default(uuid()) @db.Uuid
+  email              String       @unique
+  createdAt          DateTime     @default(now()) @db.Timestamptz(6)
+  memberships        Membership[]
+  checkIns           CheckIn[]
+}
+
+model Pair {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  timezone    String
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+  memberships Membership[]
+  invites     Invite[]
+  goals       Goal[]
+  rewards     Reward[]
+  redemptions Redemption[]
+  ledgerEntries LedgerEntry[]
+}
+
+model Membership {
+  id        String   @id @default(uuid()) @db.Uuid
+  pairId    String   @db.Uuid
+  userId    String   @unique @db.Uuid
+  slot      Int
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  pair      Pair     @relation(fields: [pairId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdInvites Invite[]
+  ownedGoals Goal[] @relation("GoalOwner")
+  proposedGoals Goal[] @relation("GoalProposer")
+  approvedGoals Goal[] @relation("GoalApprover")
+  offeredRewards Reward[] @relation("RewardOfferer")
+  approvedRewards Reward[] @relation("RewardApprover")
+  redemptions Redemption[]
+  ledgerEntries LedgerEntry[]
+
+  @@unique([pairId, slot])
+  @@unique([pairId, userId])
+}
+
+model Invite {
+  id          String      @id @default(uuid()) @db.Uuid
+  pairId      String      @db.Uuid
+  createdById String      @db.Uuid
+  email       String
+  tokenHash   String      @unique
+  expiresAt   DateTime    @db.Timestamptz(6)
+  acceptedAt  DateTime?   @db.Timestamptz(6)
+  createdAt   DateTime    @default(now()) @db.Timestamptz(6)
+  pair        Pair        @relation(fields: [pairId], references: [id], onDelete: Cascade)
+  creator     Membership @relation(fields: [pairId, createdById], references: [pairId, userId], onDelete: Restrict)
+}
+
+model Goal {
+  id            String      @id @default(uuid()) @db.Uuid
+  pairId        String      @db.Uuid
+  ownerId       String      @db.Uuid
+  proposedById  String      @db.Uuid
+  title         String
+  description   String?
+  weekdays      Int[]
+  requiredCount Int
+  weeklyTokens  Int
+  status        GoalStatus  @default(PENDING)
+  approvedById  String?     @db.Uuid
+  approvedAt    DateTime?   @db.Timestamptz(6)
+  startsOn      String?
+  createdAt     DateTime    @default(now()) @db.Timestamptz(6)
+  pair          Pair        @relation(fields: [pairId], references: [id], onDelete: Cascade)
+  owner         Membership  @relation("GoalOwner", fields: [pairId, ownerId], references: [pairId, userId], onDelete: Restrict)
+  proposer      Membership  @relation("GoalProposer", fields: [pairId, proposedById], references: [pairId, userId], onDelete: Restrict)
+  approver      Membership? @relation("GoalApprover", fields: [pairId, approvedById], references: [pairId, userId], onDelete: Restrict)
+  checkIns      CheckIn[]
+  settlements   WeeklySettlement[]
+
+  @@unique([id, ownerId])
+}
+
+model CheckIn {
+  id        String   @id @default(uuid()) @db.Uuid
+  goalId    String   @db.Uuid
+  userId    String   @db.Uuid
+  localDate String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  goal      Goal     @relation(fields: [goalId, userId], references: [id, ownerId], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, localDate])
+}
+
+model WeeklySettlement {
+  id             String   @id @default(uuid()) @db.Uuid
+  goalId         String   @db.Uuid
+  weekStart      String
+  completedCount Int
+  requiredCount  Int
+  awardedTokens  Int
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  goal           Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, weekStart])
+}
+
+model Reward {
+  id                     String       @id @default(uuid()) @db.Uuid
+  pairId                 String       @db.Uuid
+  offeredById            String       @db.Uuid
+  title                  String
+  description            String?
+  fulfillmentExpectation String
+  cost                   Int
+  status                 RewardStatus @default(PENDING)
+  approvedById           String?      @db.Uuid
+  approvedAt             DateTime?    @db.Timestamptz(6)
+  createdAt              DateTime     @default(now()) @db.Timestamptz(6)
+  pair                   Pair         @relation(fields: [pairId], references: [id], onDelete: Cascade)
+  offerer                Membership   @relation("RewardOfferer", fields: [pairId, offeredById], references: [pairId, userId], onDelete: Restrict)
+  approver               Membership?  @relation("RewardApprover", fields: [pairId, approvedById], references: [pairId, userId], onDelete: Restrict)
+  redemptions            Redemption[]
+
+  @@unique([id, pairId])
+}
+
+model Redemption {
+  id             String           @id @default(uuid()) @db.Uuid
+  pairId         String           @db.Uuid
+  rewardId       String           @db.Uuid
+  spenderId      String           @db.Uuid
+  cost           Int
+  idempotencyKey String
+  status         RedemptionStatus @default(REQUESTED)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(6)
+  fulfilledAt    DateTime?        @db.Timestamptz(6)
+  pair           Pair             @relation(fields: [pairId], references: [id], onDelete: Cascade)
+  reward         Reward           @relation(fields: [rewardId, pairId], references: [id, pairId], onDelete: Restrict)
+  spender        Membership       @relation(fields: [pairId, spenderId], references: [pairId, userId], onDelete: Restrict)
+
+  @@unique([spenderId, idempotencyKey])
+}
+
+model LedgerEntry {
+  id             String       @id @default(uuid()) @db.Uuid
+  pairId         String       @db.Uuid
+  userId         String       @db.Uuid
+  amount         Int
+  reason         LedgerReason
+  sourceId       String       @db.Uuid
+  idempotencyKey String       @unique
+  createdAt      DateTime     @default(now()) @db.Timestamptz(6)
+  pair           Pair         @relation(fields: [pairId], references: [id], onDelete: Cascade)
+  recipient      Membership   @relation(fields: [pairId, userId], references: [pairId, userId], onDelete: Restrict)
+}
