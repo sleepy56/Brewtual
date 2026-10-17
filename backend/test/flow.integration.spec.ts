@@ -8,6 +8,7 @@ import request from 'supertest';
 import { Clock } from '../src/domain/clock';
 import { PrismaService } from '../src/database/prisma.service';
 import { setupApp } from '../src/http/setup-app';
+import { hashPassword } from '../src/auth/password';
 
 describe('two-person API flow against PostgreSQL', () => {
   const secret = 'integration-only-key-with-at-least-32-characters';
@@ -179,5 +180,28 @@ describe('two-person API flow against PostgreSQL', () => {
     await expect(db.ledgerEntry.delete({ where: { id: entry.id } })).rejects.toThrow();
     await expect(db.membership.create({ data: { pairId, userId: ids[2], slot: 3 } })).rejects.toThrow();
     expect((await get(0, '/wallet').expect(200)).body.balance).toBe(1);
+  });
+
+  it('logs in, rotates browser cookies, rejects replay, and revokes access on logout', async () => {
+    process.env.AUTH_MODE = 'jwt'; process.env.JWT_SECRET = secret;
+    try {
+      await db.user.update({ where: { id: ids[0] }, data: { passwordHash: await hashPassword('individual password for Alice') } });
+      const browserPost = (path: string) => request(app!.getHttpServer()).post(`/api/v1/auth/${path}`).set('Origin', 'http://localhost:3000');
+      await browserPost('login').send({ email: emails[0], password: 'wrong', client: 'web' }).expect(401);
+      await browserPost('login').send({ email: emails[0], password: 'anything', client: 'web', admin: true }).expect(400);
+      await request(app!.getHttpServer()).post('/api/v1/auth/login').set('Origin', 'https://evil.example').send({ email: emails[0], password: 'individual password for Alice', client: 'web' }).expect(403);
+      const login = await browserPost('login').send({ email: emails[0], password: 'individual password for Alice', client: 'web' }).expect(201);
+      expect(login.body).not.toHaveProperty('refreshToken');
+      const cookie = login.headers['set-cookie'][0].split(';')[0];
+      expect(login.headers['set-cookie'][0]).toContain('HttpOnly');
+      await request(app!.getHttpServer()).get('/api/v1/me').auth(login.body.accessToken, { type: 'bearer' }).expect(200, { id: ids[0], email: emails[0] });
+      const rotated = await browserPost('refresh').set('Cookie', cookie).send({ client: 'web' }).expect(201);
+      const nextCookie = rotated.headers['set-cookie'][0].split(';')[0];
+      expect(nextCookie).not.toBe(cookie);
+      await browserPost('refresh').set('Cookie', cookie).send({ client: 'web' }).expect(401);
+      await browserPost('logout').set('Cookie', nextCookie).send({ client: 'web' }).expect(201);
+      await browserPost('refresh').set('Cookie', nextCookie).send({ client: 'web' }).expect(401);
+      await request(app!.getHttpServer()).get('/api/v1/me').auth(rotated.body.accessToken, { type: 'bearer' }).expect(401);
+    } finally { process.env.AUTH_MODE = 'local'; }
   });
 });

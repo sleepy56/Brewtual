@@ -14,6 +14,7 @@
     "db:check": "node scripts/check-db.cjs",
     "db:migrate": "prisma migrate deploy",
     "db:dev": "prisma migrate dev",
+    "auth:provision": "node -r dotenv/config -r ts-node/register scripts/provision-account.ts",
     "local:token": "node scripts/local-token.cjs",
     "local:setup": "node scripts/local-setup.cjs"
   },

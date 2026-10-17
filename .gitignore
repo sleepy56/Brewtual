@@ -6,6 +6,7 @@ node_modules/
 !.env.*.example
 .vercel/
 .expo/
+mobile/.tmp/
 dist/
 coverage/
 *.tsbuildinfo

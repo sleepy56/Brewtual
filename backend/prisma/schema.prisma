@@ -34,6 +34,8 @@ model User {
   id                 String       @id @default(uuid()) @db.Uuid
   email              String       @unique
   createdAt          DateTime     @default(now()) @db.Timestamptz(6)
+  passwordHash       String?
+  authSessions       AuthSession[]
   memberships        Membership[]
   checkIns           CheckIn[]
 }
@@ -183,4 +185,16 @@ model LedgerEntry {
   createdAt      DateTime     @default(now()) @db.Timestamptz(6)
   pair           Pair         @relation(fields: [pairId], references: [id], onDelete: Cascade)
   recipient      Membership   @relation(fields: [pairId, userId], references: [pairId, userId], onDelete: Restrict)
+}
+
+model AuthSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(6)
+  revokedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

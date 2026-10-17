@@ -1,6 +1,6 @@
 # UI and UX requirements: two-person habit and rewards app
 
-> **Client decision, 14 October 2026:** The primary UI is now planned as React Native + Expo for Android and iOS, backed by the existing NestJS API and Neon PostgreSQL. The product flows and states below remain useful; web layout/PWA installation details describe a future optional browser client. Mobile notifications and app installation will use native/Expo workflows. Flutter is excluded for now. See [the current hosting and mobile plan](DEPLOYMENT_AND_MOBILE_PLAN.md).
+> **Current UI slice, 14 October 2026:** Port `mobile/pair-habits-preview.html` to native React Native + Expo and persist theme settings. This slice uses fictional local data only; it makes no API calls and has no sign-in or password gate. Tabs: Today, Goals, Rewards, Activity. Profile opens Settings; notification badge opens Approvals. The detailed product flows below describe future product behavior; PWA and Web Push details are historical and do not define this native slice. See [the current hosting and mobile plan](DEPLOYMENT_AND_MOBILE_PLAN.md).
 
 **Status:** design brief for the first private web app  
 **Companion:** [product and technical plan](PRODUCT_PLAN.md)  

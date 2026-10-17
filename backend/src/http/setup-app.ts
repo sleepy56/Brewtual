@@ -15,7 +15,7 @@ export function setupApp(app: INestApplication) {
     response.setHeader('X-Request-Id', supplied && /^[a-zA-Z0-9_-]{1,64}$/.test(supplied) ? supplied : randomUUID());
     next();
   });
-  app.enableCors({ origin: config.getOrThrow<string>('CORS_ORIGINS').split(',').filter(Boolean), methods: ['GET', 'POST', 'DELETE', 'OPTIONS'], allowedHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key', 'X-Request-Id'] });
+  app.enableCors({ credentials: true, origin: config.getOrThrow<string>('CORS_ORIGINS').split(',').filter(Boolean), methods: ['GET', 'POST', 'DELETE', 'OPTIONS'], allowedHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key', 'X-Request-Id'] });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true, transformOptions: { enableImplicitConversion: false } }));
   app.useGlobalFilters(new ApiExceptionFilter());
 }

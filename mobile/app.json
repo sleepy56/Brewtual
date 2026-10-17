@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Pair Habits",
+    "slug": "pair-habits",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "pairhabits",
+    "ios": { "supportsTablet": true },
+    "android": { "softwareKeyboardLayoutMode": "resize" },
+    "web": { "bundler": "metro", "name": "Pair Habits", "shortName": "Pair Habits" }
+  }
+}

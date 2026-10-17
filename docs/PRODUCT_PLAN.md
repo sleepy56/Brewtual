@@ -1,6 +1,8 @@
 # Two-person habit and rewards app: product and technical plan
 
-> **Implementation decision, 14 October 2026:** The backend is now a separate NestJS API with Prisma and Neon PostgreSQL. Vercel is the initial hosting target, and the planned primary client is a separate React Native + Expo app for Android/iOS. Flutter is excluded for now. The current JWT adapter uses Supabase Auth independently of the Neon database; production authentication settings are pending. This supersedes the PWA-first/client and database recommendations below. See [the current hosting and mobile plan](DEPLOYMENT_AND_MOBILE_PLAN.md).
+> **Current implementation decision, 14 October 2026:** The immediate client slice ports `mobile/pair-habits-preview.html` into native React Native + Expo and persists theme settings. Demo data is fictional/local; there is no API integration, login, or password gate. The existing NestJS API is a separate slice for future integration. Future auth uses app-owned JWTs and two provisioned accounts with individual passwords; email/password is primary and phone is an optional second identifier. Supabase is not part of the current decision. See [hosting and mobile plan](DEPLOYMENT_AND_MOBILE_PLAN.md) and [authentication plan](AUTHENTICATION_PLAN.md).
+
+The product vision below is historical planning context; PWA-specific descriptions are not the current client implementation.
 
 **Status:** decision draft for Sanket and partner  
 **Prepared:** 3 October 2026  
@@ -16,15 +18,15 @@ The product decision here is to make something the two of you actually want to u
 
 **Promise:** “Agree on a goal, show up for it, and turn progress into something meaningful together.”
 
-**The first version supports:**
+**The eventual product version supports:**
 
 - One invitation-only pair, two individual accounts, shared visibility of agreed goals.
 - Recurring habits with a weekly target, and one-off milestone goals for a larger objective.
 - Partner approval of goal terms, reward terms, and optional rule buyout terms.
 - Self-reported check-ins, transparent progress, deterministic token awards, a transaction history, redemption, and fulfillment status.
-- A responsive, installable PWA with a phone home-screen icon. Web Push can notify the pair about approvals and reward requests after each person opts in.
+- A private mobile client with optional notifications after each person opts in.
 
-**Deferred:** friend groups, family/child accounts, employers, money, token purchases, leaderboards, AI coaching, proof photos, chat, integrations, and native apps. These are separate product hypotheses. A shared “pair” data model should make future extension possible, but the first interface should not expose group or company controls.
+**Deferred:** API integration, authentication screens, email/phone verification, recovery, notifications, friend groups, family/child accounts, employers, money, token purchases, leaderboards, AI coaching, proof photos, chat, and integrations. These require separate slices. The present UI is a local prototype walkthrough only.
 
 ### Core principles
 

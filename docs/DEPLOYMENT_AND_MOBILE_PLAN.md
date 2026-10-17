@@ -1,19 +1,27 @@
+> Update, 17 October 2026: responsive web layout and provisioned email/password login are implemented. The client authenticates against the backend; habit API screens remain a separate fictional demo. Use the current [authentication guide](AUTHENTICATION_PLAN.md) and root README for setup. Earlier no-auth statements below describe the 14 October prototype. No deployment has been performed.
+
 # Hosting and mobile plan
 
-**Decision updated: 14 October 2026.** Keep the existing NestJS API, use Neon PostgreSQL, and build a separate React Native app with Expo for Android and iOS. Flutter is outside the current scope. This supersedes the earlier PWA-first client recommendation in the product/UI briefs.
+**Decision updated: 14 October 2026.** The immediate deliverable is the native React Native + Expo UI from `mobile/pair-habits-preview.html`, with persisted theme settings and local fictional demo state. It makes no API calls and has no sign-in/password gate. The existing NestJS API is a separate implemented slice; API integration comes later. Future production authentication is ordinary app-owned JWT auth, not Supabase. Flutter and a PWA are outside the current mobile slice.
 
-The backend has already been implemented and tested. Keeping it is the fastest route to the first usable mobile app. Vercel supports [NestJS applications directly](https://vercel.com/docs/frameworks/backend/nestjs), so a Next.js API rewrite is unnecessary. Next.js remains an option for a future browser app or public project site; it would call the same API.
+The backend is already implemented as a separate slice, but it is not wired to this mobile UI. Keep it as the future API boundary; do not describe the prototype as a usable authenticated client. Vercel supports [NestJS applications directly](https://vercel.com/docs/frameworks/backend/nestjs), so a Next.js API rewrite is unnecessary.
 
 ```mermaid
 flowchart LR
-  M[React Native / Expo mobile app] -->|Bearer token + HTTPS| A[NestJS API on Vercel]
+  M[React Native / Expo mobile demo] -. future API .-> A[NestJS API on Vercel]
   A -->|Prisma / pooled connection| D[(Neon PostgreSQL)]
-  M --> S[Managed authentication]
-  A -->|Verify access token| S
-  W[Optional future Next.js web app] --> A
+  M -. future bearer JWT .-> A
+  A -->|JWT verification| J[App-owned auth / future password login]
+  W[Optional future web app] -.-> A
 ```
 
-Expo is tooling around React Native: the mobile UI is a native Android/iOS application built from a shared TypeScript codebase. Start with development builds/Expo Go for the two-person walkthrough, then create installable builds. This task prepared `mobile/.env.example`; the mobile UI has not been scaffolded. Reference: [Expo project creation](https://docs.expo.dev/get-started/create-a-project/).
+Expo is tooling around React Native: the UI is a native Android/iOS application built from a shared TypeScript codebase, with optional Expo web preview. Current UI/theme settings are local only. Root commands are `npm run mobile`, `npm run mobile:web`, `npm run mobile:typecheck`, and `npm run mobile:export`. Reference: [Expo project creation](https://docs.expo.dev/get-started/create-a-project/).
+
+## Authentication decision
+
+No Supabase project or authentication provider is part of the plan. The future first private auth slice provisions two individual accounts, using email/password as the primary login and phone as an optional second identifier. Email/phone verification and password recovery are later work; unverified identifiers cannot establish recovery ownership. Use `AUTH_MODE=jwt`, backend-only `JWT_SECRET`, `JWT_ISSUER=pair-habits`, and `JWT_AUDIENCE=pair-habits-api`; retain `AUTH_MODE=local` only for local development/test. Production must fail closed until login/issuance exists and verified tokens resolve to existing users. Follow [the authentication plan](AUTHENTICATION_PLAN.md).
+
+Password hashes should use Argon2id or scrypt; access JWTs should be short-lived, refresh credentials rotated/revocable, and mobile refresh tokens stored in platform secure storage. Never expose signing secrets through Expo public variables. Password login needs no email vendor. If later adding email verification/recovery, Resend lists 3,000 messages/month, 100/day and 3 domains on its free tier; two low-traffic accounts fit the listed volume, while domain purchase and verification are separate ([pricing](https://resend.com/pricing), [domain setup](https://resend.com/docs/dashboard/domains/introduction)). No provider account, API key, or emails were configured.
 
 ## Configured environment
 
@@ -27,18 +35,16 @@ Both connections were verified and the existing initial migration was applied to
 | `DATABASE_URL_UNPOOLED` | Direct connection for Prisma migrations | Backend/deployment migration tooling only |
 | `NODE_ENV` | `development` locally, `production` on Vercel | Backend |
 | `PORT` | Local API port, currently 3001; supplied by the host in deployment | Backend |
-| `AUTH_MODE` | `local` for development, `supabase` for managed sign-in | Backend |
+| `AUTH_MODE` | `local` for development/test; `jwt` for production verification | Backend |
 | `LOCAL_AUTH_SECRET` | Existing random development token signing key | Local backend only |
-| `SUPABASE_URL` | Authentication project origin used for JWT verification | Backend; still needs a real project value |
+| `JWT_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE` | App-owned JWT verification config (`pair-habits`, `pair-habits-api`) | Backend only; login issuer not implemented |
 | `CORS_ORIGINS` | Exact browser client origins; empty is valid for a native-only app | Backend |
 | `DB_TRANSACTION_MAX_WAIT_MS` | Maximum transaction connection wait, default 10 seconds | Backend |
 | `DB_TRANSACTION_TIMEOUT_MS` | Maximum transaction duration, default 30 seconds | Backend |
 | `TEST_DATABASE_URL` | Disposable integration-test database, currently local Docker Postgres | Local tests/CI only |
-| `EXPO_PUBLIC_API_URL` | HTTPS API URL, ending with `/api/v1`; LAN URL during development | Mobile app |
-| `EXPO_PUBLIC_SUPABASE_URL` | Authentication project origin | Mobile app; pending |
-| `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public authentication client key | Mobile app; pending |
+| `EXPO_PUBLIC_API_URL` | Future HTTPS API URL, ending with `/api/v1` | Mobile app; unused in demo slice |
 
-Database hosting and authentication are separate services. The current backend verifies Supabase Auth access tokens; moving storage to Neon does not configure sign-in automatically. No Supabase project settings were supplied. Production must use managed sign-in; the backend rejects local token authentication in production. Do not add a Supabase service-role key to the mobile app; this backend does not need that key to verify JWTs.
+The current UI is local and unauthenticated. The JWT verifier checks expiry, issuer, audience, and an existing database account; password login and token issuance are still required before a private release. Missing production configuration and invalid tokens are rejected. Do not put passwords or signing keys in the client.
 
 Expo embeds `EXPO_PUBLIC_*` values in the app bundle, so these fields must contain only public client configuration. Database passwords and the development signing key stay in the backend. Reference: [Expo environment variables](https://docs.expo.dev/guides/environment-variables/).
 
@@ -46,12 +52,12 @@ Expo embeds `EXPO_PUBLIC_*` values in the app bundle, so these fields must conta
 
 1. Import this repository with **Root Directory = `backend`**. Allow workspace source/dependency files outside that directory so the root npm lockfile and workspace dependencies are included.
 2. Use Vercel's NestJS framework detection, **Node 24**, and the build command `npm run build`. `src/main.ts` follows Vercel's supported entrypoint convention. Reference: [Vercel Node versions](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions).
-3. Set the values shown in `backend/.env.vercel.example` in Vercel's environment settings. Fill both database URLs and the real authentication project URL; use `NODE_ENV=production` and `AUTH_MODE=supabase`. Keep development signing keys and local test URLs out of the deployment.
+3. Set database URLs and production values in the deployment environment. Production should use `NODE_ENV=production` and `AUTH_MODE=jwt` only after the JWT issuer/login slice exists; otherwise the API must fail closed. Keep local signing keys and test URLs out of deployment.
 4. `backend/vercel.json` selects Singapore (`sin1`), matching the supplied Neon endpoint's `ap-southeast-1` region. Keeping API/database compute close reduces request latency. Reference: [Vercel regions](https://vercel.com/docs/regions).
 5. Apply reviewed migrations once per target database with `npm run db:migrate` from the repository root. The build only generates the Prisma client and compiles; it does not silently mutate the production schema.
 6. Set the eventual API URL in the mobile app and test sign-in, pair access, settlement, and redemption against the deployed API.
 
-Vercel deployment was not performed in this task. Development configuration and deployment templates are prepared; authentication project values still need to be supplied.
+Vercel deployment was not performed. The mobile prototype remains local-only; no production auth issuer or deployment is configured.
 
 ## Scaling direction
 

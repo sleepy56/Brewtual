@@ -11,8 +11,8 @@ describe('startup configuration', () => {
   it('rejects wildcard CORS configuration', () => {
     expect(() => validateEnvironment({ ...valid, CORS_ORIGINS: '*' })).toThrow('explicit origins');
   });
-  it('requires a trusted HTTPS managed identity origin', () => {
-    expect(() => validateEnvironment({ ...valid, AUTH_MODE: 'supabase', SUPABASE_URL: 'http://example.com' })).toThrow('HTTPS');
+  it('requires a strong signing key for first-party JWT verification', () => {
+    expect(() => validateEnvironment({ ...valid, AUTH_MODE: 'jwt', JWT_SECRET: 'short' })).toThrow('JWT_SECRET');
   });
   it('normalizes the server port', () => {
     expect(validateEnvironment(valid).PORT).toBe(3001);
@@ -28,7 +28,11 @@ describe('startup configuration', () => {
   it.each(['0', '60001', 'not-a-number'])('rejects an invalid transaction timeout: %s', timeout => {
     expect(() => validateEnvironment({ ...valid, DB_TRANSACTION_TIMEOUT_MS: timeout })).toThrow('DB_TRANSACTION_TIMEOUT_MS');
   });
-  it('identifies a missing managed auth project setting', () => {
-    expect(() => validateEnvironment({ ...valid, AUTH_MODE: 'supabase', SUPABASE_URL: '' })).toThrow('SUPABASE_URL');
+  it('fails closed when production JWT settings are missing', () => {
+    expect(() => validateEnvironment({ ...valid, NODE_ENV: 'production', AUTH_MODE: 'jwt', JWT_SECRET: '' })).toThrow('JWT_SECRET');
+  });
+  it('accepts configured production JWT auth and rejects the retired provider mode', () => {
+    expect(validateEnvironment({ ...valid, NODE_ENV: 'production', AUTH_MODE: 'jwt', JWT_SECRET: 'b'.repeat(48) }).AUTH_MODE).toBe('jwt');
+    expect(() => validateEnvironment({ ...valid, AUTH_MODE: 'supabase' })).toThrow('AUTH_MODE');
   });
 });

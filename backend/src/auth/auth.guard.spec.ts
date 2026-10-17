@@ -9,7 +9,7 @@ const subject = '11111111-1111-4111-8111-111111111111';
 
 describe('AuthGuard', () => {
   const originalEnv = { ...process.env };
-  let prisma: { user: { upsert: jest.Mock } };
+  let prisma: { user: { upsert: jest.Mock; findUnique: jest.Mock }; authSession: { findUnique: jest.Mock } };
   let reflector: { getAllAndOverride: jest.Mock };
   let guard: AuthGuard;
 
@@ -17,7 +17,7 @@ describe('AuthGuard', () => {
     process.env.AUTH_MODE = 'local';
     process.env.NODE_ENV = 'test';
     process.env.LOCAL_AUTH_SECRET = localSecret;
-    prisma = { user: { upsert: jest.fn().mockResolvedValue({}) } };
+    prisma = { user: { upsert: jest.fn().mockResolvedValue({}), findUnique: jest.fn() }, authSession: { findUnique: jest.fn().mockResolvedValue({ id: subject, userId: subject, revokedAt: null, expiresAt: new Date(Date.now() + 60000) }) } };
     reflector = { getAllAndOverride: jest.fn().mockReturnValue(false) };
     guard = new AuthGuard(reflector as unknown as Reflector, prisma as never);
   });
@@ -147,5 +147,26 @@ describe('AuthGuard', () => {
       UnauthorizedException,
     );
     expect(prisma.user.upsert).not.toHaveBeenCalled();
+  });
+
+  it('verifies first-party JWTs against an existing account without creating users', async () => {
+    process.env.AUTH_MODE = 'jwt';
+    process.env.NODE_ENV = 'production';
+    process.env.JWT_SECRET = 'first-party-test-key-with-at-least-32-characters';
+    process.env.JWT_ISSUER = 'pair-habits';
+    process.env.JWT_AUDIENCE = 'pair-habits-api';
+    prisma.user.findUnique.mockResolvedValue({ id: subject, email: 'registered@example.com' });
+    const token = await new SignJWT({ email: 'ignored-claim@example.com', sid: subject }).setProtectedHeader({ alg: 'HS256' })
+      .setSubject(subject).setIssuer('pair-habits').setAudience('pair-habits-api').setExpirationTime('5m')
+      .sign(new TextEncoder().encode(process.env.JWT_SECRET));
+    const request = { headers: { authorization: `Bearer ${token}` } };
+    const context = { getHandler: () => ({}), getClass: () => ({}), switchToHttp: () => ({ getRequest: () => request }) };
+    await expect(guard.canActivate(context as never)).resolves.toBe(true);
+    expect(request).toHaveProperty('user', { id: subject, email: 'registered@example.com' });
+    expect(prisma.user.upsert).not.toHaveBeenCalled();
+    prisma.authSession.findUnique.mockResolvedValue({ userId: subject, revokedAt: new Date(), expiresAt: new Date(Date.now() + 60000) });
+    await expect(guard.canActivate(context as never)).rejects.toThrow('Session expired');
+    prisma.user.findUnique.mockResolvedValue(null);
+    await expect(guard.canActivate(context as never)).rejects.toThrow('Account is unavailable');
   });
 });

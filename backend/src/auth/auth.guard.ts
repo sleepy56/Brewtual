@@ -6,14 +6,14 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Prisma } from '@prisma/client';
-import { createRemoteJWKSet, jwtVerify, JWTPayload } from 'jose';
+import { jwtVerify, JWTPayload } from 'jose';
 import { PrismaService } from '../database/prisma.service';
 import { AuthenticatedUser } from './auth.types';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
 const LOCAL_ISSUER = 'group-quests-local';
 const LOCAL_AUDIENCE = 'group-quests-api';
-const SUPABASE_AUDIENCE = 'authenticated';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type AuthRequest = {
@@ -23,9 +23,6 @@ type AuthRequest = {
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  private remoteJwks?: ReturnType<typeof createRemoteJWKSet>;
-  private jwksUrl?: string;
-
   constructor(
     private readonly reflector: Reflector,
     private readonly prisma: PrismaService,
@@ -47,6 +44,20 @@ export class AuthGuard implements CanActivate {
     if (!token) throw new UnauthorizedException('Bearer token required');
 
     const payload = await this.verify(token);
+    if (this.authMode() === 'jwt') {
+      if (!payload.sub || !UUID_PATTERN.test(payload.sub)) {
+        throw new UnauthorizedException('Token subject must be a user ID');
+      }
+      const existingUser = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+      if (!existingUser) throw new UnauthorizedException('Account is unavailable');
+      if (typeof payload.sid !== 'string' || !UUID_PATTERN.test(payload.sid)) throw new UnauthorizedException('Session required');
+      const session = await this.prisma.authSession.findUnique({ where: { id: payload.sid } });
+      if (!session || session.userId !== existingUser.id || session.revokedAt || session.expiresAt <= new Date()) {
+        throw new UnauthorizedException('Session expired. Please sign in again');
+      }
+      request.user = { id: existingUser.id, email: existingUser.email };
+      return true;
+    }
     const user = this.userFromClaims(payload);
     try {
       await this.prisma.user.upsert({
@@ -69,8 +80,12 @@ export class AuthGuard implements CanActivate {
     return true;
   }
 
+  private authMode(): string {
+    return process.env.AUTH_MODE ?? (process.env.NODE_ENV === 'production' ? 'jwt' : 'local');
+  }
+
   private async verify(token: string): Promise<JWTPayload> {
-    const mode = process.env.AUTH_MODE;
+    const mode = this.authMode();
     if (mode === 'local') {
       if (
         process.env.NODE_ENV !== 'development' &&
@@ -99,20 +114,15 @@ export class AuthGuard implements CanActivate {
       }
     }
 
-    const baseUrl = process.env.SUPABASE_URL;
-    if (!baseUrl) throw new UnauthorizedException('Authentication is not configured');
-    const issuer = `${baseUrl.replace(/\/$/, '')}/auth/v1`;
-    const url = `${issuer}/.well-known/jwks.json`;
-    if (!this.remoteJwks || this.jwksUrl !== url) {
-      this.remoteJwks = createRemoteJWKSet(new URL(url));
-      this.jwksUrl = url;
-    }
+    if (mode !== 'jwt') throw new UnauthorizedException('Authentication mode is unavailable');
+    const secret = process.env.JWT_SECRET;
+    if (!secret || secret.length < 32) throw new UnauthorizedException('JWT authentication is not configured');
     try {
-      const { payload } = await jwtVerify(token, this.remoteJwks, {
-        issuer,
-        audience: SUPABASE_AUDIENCE,
-        algorithms: ['ES256', 'RS256'],
-        requiredClaims: ['exp'],
+      const { payload } = await jwtVerify(token, new TextEncoder().encode(secret), {
+        issuer: process.env.JWT_ISSUER ?? 'pair-habits',
+        audience: process.env.JWT_AUDIENCE ?? 'pair-habits-api',
+        algorithms: ['HS256'],
+        requiredClaims: ['exp', 'sub'],
       });
       return payload;
     } catch {
@@ -125,7 +135,7 @@ export class AuthGuard implements CanActivate {
     const email = typeof payload.email === 'string' ? payload.email.trim() : '';
     if (
       !id ||
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) ||
+      !UUID_PATTERN.test(id) ||
       !EMAIL_PATTERN.test(email)
     ) {
       throw new UnauthorizedException('Token must contain a subject and email');
