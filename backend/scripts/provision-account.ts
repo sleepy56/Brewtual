@@ -16,7 +16,7 @@ async function main() {
   try {
     const passwordHash = await hashPassword(password);
     await prisma.$transaction(async tx => {
-      const user = await tx.user.upsert({ where: { email }, create: { email, passwordHash }, update: { passwordHash } });
+      const user = await tx.user.upsert({ where: { email }, create: { email, passwordHash, emailVerifiedAt: new Date() }, update: { passwordHash, emailVerifiedAt: new Date() } });
       await tx.authSession.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
     });
     console.log('Account provisioned; previous sessions revoked.');

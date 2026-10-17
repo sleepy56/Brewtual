@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, HttpCode, Post, Req, Res } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { Request, Response } from 'express';
@@ -13,6 +13,16 @@ class LoginDto {
   @IsEmail() @MaxLength(254) email!: string;
   @IsString() @MinLength(1) @MaxLength(128) password!: string;
   @IsIn(['web', 'native']) client!: 'web' | 'native';
+}
+class SignupDto extends LoginDto {
+  @MinLength(15) declare password: string;
+}
+class ResendDto {
+  @IsEmail() @MaxLength(254) email!: string;
+  @IsIn(['web', 'native']) client!: 'web' | 'native';
+}
+class ConfirmDto extends SignupDto {
+  @IsString() @MinLength(43) @MaxLength(43) token!: string;
 }
 
 const COOKIE = 'pair_refresh';
@@ -45,6 +55,32 @@ export class AuthController {
     if (client === 'native') return { ...session, expiresIn: 900 };
     response.cookie(COOKIE, session.refreshToken, { ...this.cookieOptions(), maxAge: 30 * 24 * 60 * 60 * 1000 });
     return { accessToken: session.accessToken, user: session.user, expiresIn: 900 };
+  }
+
+  @Post('signup')
+  @HttpCode(202)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async signup(@Req() request: Request, @Res({ passthrough: true }) response: Response, @Body() body: SignupDto) {
+    this.checkOrigin(request, body.client);
+    response.setHeader('Cache-Control', 'no-store');
+    return this.auth.signup(body.email, body.password);
+  }
+
+  @Post('verify/resend')
+  @HttpCode(202)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async resend(@Req() request: Request, @Res({ passthrough: true }) response: Response, @Body() body: ResendDto) {
+    this.checkOrigin(request, body.client);
+    response.setHeader('Cache-Control', 'no-store');
+    return this.auth.resendVerification(body.email);
+  }
+
+  @Post('verify/confirm')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async confirm(@Req() request: Request, @Res({ passthrough: true }) response: Response, @Body() body: ConfirmDto) {
+    this.checkOrigin(request, body.client);
+    response.setHeader('Cache-Control', 'no-store');
+    return this.auth.confirmVerification(body.email, body.token, body.password);
   }
 
   @Post('login')

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "express",
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": "public",
+  "regions": ["sin1"],
+  "rewrites": [
+    { "source": "/verify-email", "destination": "/index.html" }
+  ]
+}

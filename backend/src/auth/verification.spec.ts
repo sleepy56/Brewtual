@@ -1,0 +1,96 @@
+import { createHash } from 'node:crypto';
+import { AuthService } from './auth.service';
+import { hashPassword, verifyPassword } from './password';
+
+const digest = (value: string) => createHash('sha256').update(value).digest('hex');
+const email = 'alex@example.com';
+const password = 'a long registration password';
+
+describe('Email verification', () => {
+  const environment = { ...process.env };
+  let prisma: any;
+  let mail: { send: jest.Mock };
+  let auth: AuthService;
+
+  beforeEach(() => {
+    process.env.AUTH_MODE = 'jwt';
+    prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({}) },
+      pendingSignup: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({}),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }), deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      runInTransaction: jest.fn(async callback => callback(prisma)),
+    };
+    mail = { send: jest.fn().mockResolvedValue(undefined) };
+    auth = new AuthService(prisma, mail as never);
+  });
+  afterAll(() => { process.env = environment; });
+
+  it('does not overwrite an existing account or reveal whether it exists', async () => {
+    prisma.user.findUnique.mockResolvedValue({ email });
+    const existing = await auth.signup(email, password);
+    prisma.user.findUnique.mockResolvedValue(null);
+    const unknown = await auth.resendVerification(email);
+    expect(existing).toEqual(unknown);
+    expect(prisma.pendingSignup.create).not.toHaveBeenCalled();
+    expect(mail.send).not.toHaveBeenCalled();
+  });
+
+  it('stores only a hashed one-use token and a scrypt password hash', async () => {
+    await auth.signup(' ALEX@example.com ', password);
+    const { data } = prisma.pendingSignup.create.mock.calls[0][0];
+    const [recipient, token] = mail.send.mock.calls[0];
+    expect(recipient).toBe(email);
+    expect(data.tokenHash).toBe(digest(token));
+    expect(data.tokenHash).not.toBe(token);
+    expect(await verifyPassword(password, data.passwordHash)).toBe(true);
+    expect(data.expiresAt.getTime() - data.lastSentAt.getTime()).toBe(30 * 60 * 1000);
+  });
+
+  it('clears a pending registration and hides provider errors when mail fails', async () => {
+    mail.send.mockRejectedValue(new Error('secret SMTP token'));
+    await expect(auth.signup(email, password)).rejects.toThrow('Verification email is unavailable');
+    expect(prisma.pendingSignup.deleteMany).toHaveBeenCalledWith({ where: {
+      email, tokenHash: prisma.pendingSignup.create.mock.calls[0][0].data.tokenHash,
+    } });
+  });
+
+  it('enforces persistent resend cooldown, hourly cap and expiry', async () => {
+    const pending = { email, tokenHash: 'old', passwordHash: await hashPassword(password),
+      expiresAt: new Date(Date.now() + 60000), lastSentAt: new Date(), windowStart: new Date(), sendCount: 1 };
+    prisma.pendingSignup.findUnique.mockResolvedValue(pending);
+    await auth.resendVerification(email);
+    pending.lastSentAt = new Date(Date.now() - 61000);
+    pending.sendCount = 5;
+    await auth.resendVerification(email);
+    pending.expiresAt = new Date(0);
+    pending.sendCount = 1;
+    await auth.resendVerification(email);
+    expect(prisma.pendingSignup.updateMany).not.toHaveBeenCalled();
+    expect(mail.send).not.toHaveBeenCalled();
+  });
+
+  it('requires the registration password, rejects expiry and consumes concurrently only once', async () => {
+    const token = 'a'.repeat(43);
+    const pending = { email, tokenHash: digest(token), passwordHash: await hashPassword(password), expiresAt: new Date(Date.now() + 60000) };
+    prisma.pendingSignup.findUnique.mockResolvedValue(pending);
+    await expect(auth.confirmVerification(email, token, 'wrong password')).rejects.toThrow('invalid or expired');
+    await expect(auth.confirmVerification('other@example.com', token, password)).rejects.toThrow('invalid or expired');
+    expect(prisma.runInTransaction).not.toHaveBeenCalled();
+    let consumed = false;
+    prisma.pendingSignup.deleteMany.mockImplementation(async () => {
+      if (consumed) return { count: 0 };
+      consumed = true;
+      return { count: 1 };
+    });
+    const results = await Promise.allSettled([
+      auth.confirmVerification(email, token, password), auth.confirmVerification(email, token, password),
+    ]);
+    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter(result => result.status === 'rejected')).toHaveLength(1);
+    expect(prisma.user.create).toHaveBeenCalledTimes(1);
+    expect(prisma.user.create.mock.calls[0][0].data).toEqual({ email, passwordHash: pending.passwordHash, emailVerifiedAt: expect.any(Date) });
+    await expect(auth.confirmVerification(email, token, password)).rejects.toThrow('invalid or expired');
+    pending.expiresAt = new Date(0);
+    await expect(auth.confirmVerification(email, token, password)).rejects.toThrow('invalid or expired');
+  });
+});

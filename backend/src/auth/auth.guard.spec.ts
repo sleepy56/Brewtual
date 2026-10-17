@@ -155,7 +155,7 @@ describe('AuthGuard', () => {
     process.env.JWT_SECRET = 'first-party-test-key-with-at-least-32-characters';
     process.env.JWT_ISSUER = 'pair-habits';
     process.env.JWT_AUDIENCE = 'pair-habits-api';
-    prisma.user.findUnique.mockResolvedValue({ id: subject, email: 'registered@example.com' });
+    prisma.user.findUnique.mockResolvedValue({ id: subject, email: 'registered@example.com', emailVerifiedAt: new Date() });
     const token = await new SignJWT({ email: 'ignored-claim@example.com', sid: subject }).setProtectedHeader({ alg: 'HS256' })
       .setSubject(subject).setIssuer('pair-habits').setAudience('pair-habits-api').setExpirationTime('5m')
       .sign(new TextEncoder().encode(process.env.JWT_SECRET));
@@ -167,6 +167,8 @@ describe('AuthGuard', () => {
     prisma.authSession.findUnique.mockResolvedValue({ userId: subject, revokedAt: new Date(), expiresAt: new Date(Date.now() + 60000) });
     await expect(guard.canActivate(context as never)).rejects.toThrow('Session expired');
     prisma.user.findUnique.mockResolvedValue(null);
+    await expect(guard.canActivate(context as never)).rejects.toThrow('Account is unavailable');
+    prisma.user.findUnique.mockResolvedValue({ id: subject, email: 'registered@example.com', emailVerifiedAt: null });
     await expect(guard.canActivate(context as never)).rejects.toThrow('Account is unavailable');
   });
 });
