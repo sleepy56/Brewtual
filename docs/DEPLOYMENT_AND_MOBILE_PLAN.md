@@ -11,10 +11,10 @@ The repository keeps the NestJS API in `backend/` and Expo in `mobile/`. One Ver
 | Node.js Version | 24 |
 | Install Command | `npm ci --include=dev` (root workspace lockfile; backend TypeScript and Expo build tools are required during build) |
 | Build Command | `npm run build:vercel` |
-| Output Directory | `public` |
+| Output Directory | Leave the override disabled/default; Vercel serves the generated `public/` folder as static assets while the Express entrypoint stays at the repository root |
 | Function region | `sin1` |
 
-`npm run build:vercel` runs Prisma generation and TypeScript compilation in the existing backend, then exports Expo web to `public` with `EXPO_PUBLIC_API_URL=/api/v1`. The bundle contains only this public same-origin path, never the database, JWT or SMTP credentials. The `/api/v1` routes are handled by the root NestJS entrypoint through Vercel's Express support. The build does **not** apply migrations. Deploy reviewed migrations once per target database using `npm run db:migrate` with the direct Neon URL before serving the new API.
+`npm run build:vercel` runs Prisma generation and TypeScript compilation in the existing backend, then exports Expo web to `public` with `EXPO_PUBLIC_API_URL=/api/v1`. Keep Vercel's Output Directory override disabled: with the Express preset, the root `src/index.ts` is the API entrypoint and Vercel serves `public/**` as static assets. The bundle contains only this public same-origin path, never the database, JWT or SMTP credentials. The `/api/v1` routes are handled by the root NestJS entrypoint through Vercel's Express support. The build does **not** apply migrations. Deploy reviewed migrations once per target database using `npm run db:migrate` with the direct Neon URL before serving the new API.
 
 | Environment variable | Value and location |
 | --- | --- |

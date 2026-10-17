@@ -3,7 +3,6 @@
   "framework": "express",
   "installCommand": "npm ci --include=dev",
   "buildCommand": "npm run build:vercel",
-  "outputDirectory": "public",
   "regions": ["sin1"],
   "rewrites": [
     { "source": "/verify-email", "destination": "/index.html" }

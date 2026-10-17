@@ -8,8 +8,9 @@ const config = JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8'));
 
 test('one Vercel project serves Expo static web and the Nest API', () => {
   assert.equal(config.framework, 'express');
+  assert.equal(config.installCommand, 'npm ci --include=dev');
   assert.equal(config.buildCommand, 'npm run build:vercel');
-  assert.equal(config.outputDirectory, 'public');
+  assert.equal(config.outputDirectory, undefined);
   assert.deepEqual(config.rewrites, [{ source: '/verify-email', destination: '/index.html' }]);
   assert.ok(existsSync(join(root, 'public/index.html')), 'build:vercel must export the static app shell');
   const entry = readFileSync(join(root, 'src/index.ts'), 'utf8');
