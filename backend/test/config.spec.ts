@@ -29,9 +29,9 @@ describe('startup configuration', () => {
   it.each(['0', '60001', 'not-a-number'])('rejects an invalid transaction timeout: %s', timeout => {
     expect(() => validateEnvironment({ ...valid, DB_TRANSACTION_TIMEOUT_MS: timeout })).toThrow('DB_TRANSACTION_TIMEOUT_MS');
   });
-  it('fails closed when production JWT settings are missing', () => {
+  it('allows production JWT startup without email delivery configured', () => {
     expect(() => validateEnvironment({ ...valid, NODE_ENV: 'production', AUTH_MODE: 'jwt', JWT_SECRET: '' })).toThrow('JWT_SECRET');
-    expect(() => validateEnvironment({ ...valid, NODE_ENV: 'production', AUTH_MODE: 'jwt', JWT_SECRET: 'b'.repeat(48) })).toThrow('SMTP_HOST');
+    expect(validateEnvironment({ ...valid, APP_WEB_URL: 'https://habits.example.com', NODE_ENV: 'production', AUTH_MODE: 'jwt', JWT_SECRET: 'b'.repeat(48) }).AUTH_MODE).toBe('jwt');
     expect(() => validateEnvironment({ ...valid, ...mail, APP_WEB_URL: 'http://habits.example.com', NODE_ENV: 'production', AUTH_MODE: 'jwt', JWT_SECRET: 'b'.repeat(48) })).toThrow('APP_WEB_URL');
   });
   it('accepts configured production JWT auth and rejects the retired provider mode', () => {
