@@ -13,8 +13,10 @@ test('one Vercel project serves Expo static web and the Nest API', () => {
   assert.equal(config.outputDirectory, undefined);
   assert.deepEqual(config.rewrites, [{ source: '/verify-email', destination: '/index.html' }]);
   assert.ok(existsSync(join(root, 'public/index.html')), 'build:vercel must export the static app shell');
+  assert.equal(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).type, 'module');
   const entry = readFileSync(join(root, 'src/index.ts'), 'utf8');
-  assert.match(entry, /expressApp\.listen\(/);
+  assert.match(entry, /export default expressApp/);
+  assert.match(entry, /await app\.init\(\)/);
   assert.match(entry, /setupApp\(app\)/);
   assert.match(readFileSync(join(root, 'backend/src/http/setup-app.ts'), 'utf8'), /setGlobalPrefix\('api\/v1'\)/);
 });
