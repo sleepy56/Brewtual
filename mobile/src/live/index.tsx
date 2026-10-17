@@ -54,18 +54,26 @@ export function LiveProvider({ account, onSignOut, children }: React.PropsWithCh
       setData({ pair: current, person, names, today, goals, rewards, requests, ledger: apiLedger.map(item => mapLedger(item, requests, person, current.pair.timezone)), balance: wallet.balance });
       setPhase('ready'); setError('');
     } catch (reason) {
+      if (reason instanceof AuthError && reason.status === 401) {
+        setData(null); setPhase('loading'); await onSignOut(); return;
+      }
       if (reason instanceof AuthError && reason.status === 403 && phase === 'loading') { setPhase('no-pair'); setError(''); return; }
       setError(reason instanceof Error ? reason.message : 'Could not load your shared space.');
       if (!data) setPhase('loading');
       throw reason;
     }
-  }, [account.id, data, phase]);
+  }, [account.id, data, phase, onSignOut]);
   useEffect(() => { void refresh().catch(() => {}); }, [account.id]);
 
   async function run(action: () => Promise<void>) {
     if (pending.current) return;
     pending.current = true; setBusy(true); setError('');
-    try { await action(); } catch (reason) { setError(reason instanceof Error ? reason.message : 'The request failed.'); }
+    try { await action(); } catch (reason) {
+      if (reason instanceof AuthError && reason.status === 401) {
+        setData(null); setPhase('loading'); await onSignOut(); return;
+      }
+      setError(reason instanceof Error ? reason.message : 'The request failed.');
+    }
     finally { pending.current = false; setBusy(false); }
   }
   async function mutate(path: string, method = 'POST', body?: object, key?: string) {
@@ -75,7 +83,12 @@ export function LiveProvider({ account, onSignOut, children }: React.PropsWithCh
       const result = await apiRequest<{ id?: string }>(path, method, body, key);
       await refresh();
       return { ok: true, message: 'Saved and refreshed.', goalId: result?.id };
-    } catch (reason) { return { ok: false, message: reason instanceof Error ? reason.message : 'The request failed. Please retry.' }; }
+    } catch (reason) {
+      if (reason instanceof AuthError && reason.status === 401) {
+        setData(null); setPhase('loading'); await onSignOut();
+      }
+      return { ok: false, message: reason instanceof Error ? reason.message : 'The request failed. Please retry.' };
+    }
     finally { pending.current = false; setBusy(false); }
   }
   const actions = useMemo<AppContextValue['actions']>(() => ({
