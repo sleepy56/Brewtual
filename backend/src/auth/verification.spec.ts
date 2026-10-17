@@ -15,7 +15,7 @@ describe('Email verification', () => {
   beforeEach(() => {
     process.env.AUTH_MODE = 'jwt';
     prisma = {
-      user: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({}) },
+      user: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({}), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       pendingSignup: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({}),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }), deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
       runInTransaction: jest.fn(async callback => callback(prisma)),
@@ -26,7 +26,7 @@ describe('Email verification', () => {
   afterAll(() => { process.env = environment; });
 
   it('does not overwrite an existing account or reveal whether it exists', async () => {
-    prisma.user.findUnique.mockResolvedValue({ email });
+    prisma.user.findUnique.mockResolvedValue({ email, emailVerifiedAt: new Date() });
     const existing = await auth.signup(email, password);
     prisma.user.findUnique.mockResolvedValue(null);
     const unknown = await auth.resendVerification(email);
@@ -44,6 +44,24 @@ describe('Email verification', () => {
     expect(data.tokenHash).not.toBe(token);
     expect(await verifyPassword(password, data.passwordHash)).toBe(true);
     expect(data.expiresAt.getTime() - data.lastSentAt.getTime()).toBe(30 * 60 * 1000);
+  });
+
+  it('verifies legacy accounts without replacing their ID or password', async () => {
+    const passwordHash = await hashPassword(password);
+    const existing = { id: 'legacy-user', email, passwordHash, emailVerifiedAt: null };
+    prisma.user.findUnique.mockResolvedValue(existing);
+    await auth.signup(email, 'an attacker chosen different password');
+    const pending = prisma.pendingSignup.create.mock.calls[0][0].data;
+    expect(pending.passwordHash).toBe(passwordHash);
+    prisma.pendingSignup.findUnique.mockResolvedValue(pending);
+    const token = mail.send.mock.calls[0][1];
+    await expect(auth.confirmVerification(email, token, 'an attacker chosen different password')).rejects.toThrow('invalid or expired');
+    await auth.confirmVerification(email, token, password);
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(prisma.user.updateMany).toHaveBeenCalledWith({
+      where: { id: existing.id, emailVerifiedAt: null, passwordHash },
+      data: { passwordHash, emailVerifiedAt: expect.any(Date) },
+    });
   });
 
   it('clears a pending registration and hides provider errors when mail fails', async () => {

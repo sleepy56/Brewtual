@@ -1,6 +1,5 @@
--- Accounts created before email verification remain usable with their existing passwords.
+-- Preserve accounts and require email confirmation before protected access.
 ALTER TABLE "User" ADD COLUMN "emailVerifiedAt" TIMESTAMPTZ(6);
-UPDATE "User" SET "emailVerifiedAt" = CURRENT_TIMESTAMP;
 
 CREATE TABLE "PendingSignup" (
   "email" TEXT NOT NULL,

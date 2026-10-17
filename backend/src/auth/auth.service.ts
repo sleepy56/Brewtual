@@ -44,8 +44,10 @@ export class AuthService {
   private async issueVerification(inputEmail: string, password?: string) {
     this.ensureJwtMode();
     const email = inputEmail.trim().toLowerCase();
-    const passwordHash = password === undefined ? undefined : await hashPassword(password);
-    if (await this.prisma.user.findUnique({ where: { email } })) return GENERIC;
+    const proposedHash = password === undefined ? undefined : await hashPassword(password);
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing?.emailVerifiedAt) return GENERIC;
+    const passwordHash = existing?.passwordHash ?? proposedHash;
     const now = new Date();
     // shortcut: expired pending rows persist until that email signs up again, add cleanup if storage grows.
     const previous = await this.prisma.pendingSignup.findUnique({ where: { email } });
@@ -53,7 +55,7 @@ export class AuthService {
     if (previous && !passwordHash && previous.expiresAt <= now) return GENERIC;
     if (previous && (previous.lastSentAt.getTime() > now.getTime() - COOLDOWN_MS ||
       (previous.windowStart.getTime() > now.getTime() - WINDOW_MS && previous.sendCount >= 5) ||
-      (passwordHash && previous.expiresAt > now))) return GENERIC;
+      (password !== undefined && previous.expiresAt > now))) return GENERIC;
     const token = randomBytes(32).toString('base64url');
     const tokenHash = digest(token);
     const expiresAt = new Date(now.getTime() + VERIFY_MS);
@@ -100,7 +102,17 @@ export class AuthService {
           email, tokenHash, passwordHash: pending.passwordHash, expiresAt: { gt: new Date() },
         } });
         if (consumed.count !== 1) throw invalid();
-        await tx.user.create({ data: { email, passwordHash: pending.passwordHash, emailVerifiedAt: new Date() } });
+        const existing = await tx.user.findUnique({ where: { email } });
+        if (existing) {
+          if (existing.emailVerifiedAt || (existing.passwordHash && existing.passwordHash !== pending.passwordHash)) throw invalid();
+          const verified = await tx.user.updateMany({
+            where: { id: existing.id, emailVerifiedAt: null, passwordHash: existing.passwordHash },
+            data: { passwordHash: pending.passwordHash, emailVerifiedAt: new Date() },
+          });
+          if (verified.count !== 1) throw invalid();
+        } else {
+          await tx.user.create({ data: { email, passwordHash: pending.passwordHash, emailVerifiedAt: new Date() } });
+        }
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw invalid();
