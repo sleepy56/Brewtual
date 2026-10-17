@@ -49,7 +49,7 @@ export class AuthGuard implements CanActivate {
         throw new UnauthorizedException('Token subject must be a user ID');
       }
       const existingUser = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-      if (!existingUser) throw new UnauthorizedException('Account is unavailable');
+      if (!existingUser?.emailVerifiedAt) throw new UnauthorizedException('Account is unavailable');
       if (typeof payload.sid !== 'string' || !UUID_PATTERN.test(payload.sid)) throw new UnauthorizedException('Session required');
       const session = await this.prisma.authSession.findUnique({ where: { id: payload.sid } });
       if (!session || session.userId !== existingUser.id || session.revokedAt || session.expiresAt <= new Date()) {

@@ -4,7 +4,7 @@ import { AuthService } from './auth.service';
 import { hashPassword, verifyPassword } from './password';
 
 const secret = 'a-test-signing-key-with-at-least-32-characters';
-const user = { id: '11111111-1111-4111-8111-111111111111', email: 'alex@example.com', passwordHash: '' };
+const user = { id: '11111111-1111-4111-8111-111111111111', email: 'alex@example.com', passwordHash: '', emailVerifiedAt: new Date() };
 
 describe('Password authentication', () => {
   const environment = { ...process.env };
@@ -19,7 +19,7 @@ describe('Password authentication', () => {
       create: jest.fn().mockImplementation(async ({ data }) => ({ id: user.id, ...data })),
       findUnique: jest.fn(), updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     } };
-    auth = new AuthService(prisma);
+    auth = new AuthService(prisma, { send: jest.fn() } as never);
   });
   afterAll(() => { process.env = environment; });
 
@@ -46,6 +46,15 @@ describe('Password authentication', () => {
     prisma.user.findUnique.mockResolvedValue(null);
     await expect(auth.login('unknown@example.com', 'wrong')).rejects.toThrow('Email or password is incorrect');
     expect(prisma.authSession.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects unverified accounts at login and refresh', async () => {
+    prisma.user.findUnique.mockResolvedValue({ ...user, emailVerifiedAt: null });
+    await expect(auth.login(user.email, 'a unique and long password')).rejects.toThrow('Email or password is incorrect');
+    prisma.authSession.findUnique.mockResolvedValue({ id: user.id, userId: user.id, user: { ...user, emailVerifiedAt: null }, revokedAt: null, expiresAt: new Date(Date.now() + 60000) });
+    await expect(auth.refresh('a'.repeat(43))).rejects.toThrow('Session expired');
+    expect(prisma.authSession.create).not.toHaveBeenCalled();
+    expect(prisma.authSession.updateMany).not.toHaveBeenCalled();
   });
 
   it('does not enable password login in local token mode', async () => {

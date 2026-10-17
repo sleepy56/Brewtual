@@ -1,5 +1,7 @@
 # UI and UX requirements: two-person habit and rewards app
 
+> **Current implementation, 17 October 2026:** The Expo client has real sign-in and locally fictional habit screens. Backend signup and email verification are implemented; TASK-002 adds their client screens. See [authentication](AUTHENTICATION_PLAN.md) for the exact API contract. The 14 October slice note below is historical.
+
 > **Current UI slice, 14 October 2026:** Port `mobile/pair-habits-preview.html` to native React Native + Expo and persist theme settings. This slice uses fictional local data only; it makes no API calls and has no sign-in or password gate. Tabs: Today, Goals, Rewards, Activity. Profile opens Settings; notification badge opens Approvals. The detailed product flows below describe future product behavior; PWA and Web Push details are historical and do not define this native slice. See [the current hosting and mobile plan](DEPLOYMENT_AND_MOBILE_PLAN.md).
 
 **Status:** design brief for the first private web app  

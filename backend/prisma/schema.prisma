@@ -35,6 +35,7 @@ model User {
   email              String       @unique
   createdAt          DateTime     @default(now()) @db.Timestamptz(6)
   passwordHash       String?
+  emailVerifiedAt    DateTime?    @db.Timestamptz(6)
   authSessions       AuthSession[]
   memberships        Membership[]
   checkIns           CheckIn[]
@@ -197,4 +198,14 @@ model AuthSession {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model PendingSignup {
+  email         String   @id
+  passwordHash  String
+  tokenHash     String   @unique
+  expiresAt     DateTime @db.Timestamptz(6)
+  lastSentAt    DateTime @db.Timestamptz(6)
+  windowStart   DateTime @db.Timestamptz(6)
+  sendCount     Int
 }
