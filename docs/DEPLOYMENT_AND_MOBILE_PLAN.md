@@ -1,6 +1,6 @@
 # One-project Vercel deployment
 
-The repository keeps the NestJS API in `backend/` and Expo in `mobile/`. One Vercel project imports the **repository root**, builds the API and static web together, and serves both on the same HTTPS origin. The checked-in `vercel.json` chooses the Express preset, root `src/index.ts` as the server entrypoint, `public` as the static output, and Singapore (`sin1`) for the function. The Nest application retains its `/api/v1` prefix. Static `/verify-email` loads the app shell; the email token is consumed only by a POST. The app code is ready for deployment; Vercel, Neon, and Gmail setup remain for the owner.
+The repository keeps the NestJS API in `backend/` and Expo in `mobile/`. One Vercel project imports the **repository root**, builds the API and static web together, and serves both on the same HTTPS origin. The checked-in `vercel.json` chooses the Express preset, root `src/index.ts` as the server entrypoint, `public` as the static output, and Singapore (`sin1`) for the function. The Nest application retains its `/api/v1` prefix. Static `/verify-email` loads the app shell; the email token is consumed only by a POST. The app code is ready for deployment; Vercel, Neon, and email provider setup remain for the owner.
 
 ## Vercel project settings
 
@@ -23,12 +23,14 @@ The repository keeps the NestJS API in `backend/` and Expo in `mobile/`. One Ver
 | `DATABASE_URL_UNPOOLED` | Direct Neon URL for Prisma migration tooling; backend only |
 | `JWT_SECRET` | Random secret of at least 32 characters; backend only |
 | `JWT_ISSUER`, `JWT_AUDIENCE` | `pair-habits`, `pair-habits-api`; backend only |
-| `SMTP_USER`, `SMTP_APP_PASSWORD` | Gmail sender address and its Gmail App Password; backend only |
+| `SMTP_HOST`, `SMTP_PORT` | Provider SMTP endpoint; backend only (Resend: `smtp.resend.com`, `465`) |
+| `SMTP_USER`, `SMTP_PASSWORD` | Provider SMTP credentials; backend only (Resend: `resend` and API key) |
+| `SMTP_FROM` | Sender email on the verified sending domain; backend only |
 | `APP_WEB_URL` | Exact HTTPS origin of this Vercel project, no path or trailing slash; backend only |
 | `CORS_ORIGINS` | The same exact HTTPS origin for browser auth; backend only |
 | `DB_TRANSACTION_MAX_WAIT_MS`, `DB_TRANSACTION_TIMEOUT_MS` | Defaults 10000 and 30000; backend only |
 
-Vercel supplies `PORT`. A purchased domain is unnecessary: a Vercel project domain can host the web app and API while Gmail sends mail from the configured Gmail address. Keep `LOCAL_AUTH_SECRET`, `TEST_DATABASE_URL` and local auth mode out of production. For preview deployments, set `APP_WEB_URL` and `CORS_ORIGINS` to the exact preview origin when testing signup; a production-only value will not authorize browser POSTs on a different preview origin. Same-origin hosting lets the existing SameSite Strict, Secure, HttpOnly refresh cookie work without a second domain or cross-site cookie policy.
+Vercel supplies `PORT`. A custom domain is optional for hosting the web app and API, but a sending provider such as Resend requires a verified domain for production sender addresses. Keep `LOCAL_AUTH_SECRET`, `TEST_DATABASE_URL` and local auth mode out of production. For preview deployments, set `APP_WEB_URL` and `CORS_ORIGINS` to the exact preview origin when testing signup; a production-only value will not authorize browser POSTs on a different preview origin. Same-origin hosting lets the existing SameSite Strict, Secure, HttpOnly refresh cookie work without a second domain or cross-site cookie policy.
 
 ## Checks and scope
 

@@ -1,6 +1,6 @@
 # Authentication and TASK-002 frontend contract
 
-Updated 17 October 2026. The NestJS API and Expo client implement signup, Gmail email verification, login, refresh and logout. Authenticated members create a timezone-aware pair, invite the exact partner account email, accept an invite token, and use live goal, reward, wallet and activity APIs through the existing themed screens. The separate fictional demo remains available before sign-in. There is no Supabase, phone login, automatic password recovery or purchased mail domain.
+Updated 17 October 2026. The NestJS API and Expo client implement signup, SMTP email verification, login, refresh and logout. Authenticated members create a timezone-aware pair, invite the exact partner account email, accept an invite token, and use live goal, reward, wallet and activity APIs through the existing themed screens. The separate fictional demo remains available before sign-in. There is no Supabase, phone login or automatic password recovery.
 
 ## Registration and verification
 
@@ -18,7 +18,7 @@ The email link is `APP_WEB_URL/verify-email#token=<token>&email=<encoded email>`
 
 Pending registrations store only a SHA-256 token hash and a salted scrypt password hash. Tokens expire after 30 minutes and are consumed with a conditional delete plus account creation in one serializable transaction. A resend rotates the token and invalidates the previous link. Resend has a database-backed 60-second cooldown and a maximum of five sends per pending email per hour; expired pending registrations must restart signup. Signup and resend also have 5 requests/minute/IP via Nest throttling, and confirmation has 10 requests/minute/IP. Nest's IP limiter is in-process, so configure a Vercel Firewall/edge IP limit if public abuse becomes an issue across function instances. The per-email limits remain effective across instances.
 
-If Gmail rejects delivery, the pending token is removed and the API returns a fixed 503 message. Missing SMTP configuration prevents JWT-mode startup. SMTP errors, passwords and raw tokens are never logged. The implementation uses TLS-validated Gmail SMTP on port 465 with a Gmail App Password; `SMTP_USER` is the sender address.
+If the SMTP provider rejects delivery, the pending token is removed and the API returns a fixed 503 message. Missing SMTP configuration prevents JWT-mode startup. SMTP errors, passwords and raw tokens are never logged. SMTP host, port, credentials and sender address are configured separately; Resend can use `smtp.resend.com:465`, username `resend`, and an API key as the SMTP password. The sender address must use a verified domain.
 
 The additive migration adds nullable verification state and a pending-registration table while preserving existing accounts and data. It does not mark old accounts verified. Owners of existing accounts can request a verification email through signup or resend; confirmation requires their current password and leaves it unchanged. New public users are created only after confirmation. `npm run auth:provision` remains an explicit trusted operator command: it can create/verify a user or replace an existing password and revoke sessions. Do not use it as a public signup route.
 
@@ -32,7 +32,7 @@ The additive migration adds nullable verification state and a pending-registrati
 
 ## Configuration
 
-- `AUTH_MODE=jwt`: requires backend-only `JWT_SECRET` (at least 32 characters), `SMTP_USER`, `SMTP_APP_PASSWORD`, and `APP_WEB_URL` (an exact HTTPS origin in production). Defaults for `JWT_ISSUER` and `JWT_AUDIENCE` are `pair-habits` and `pair-habits-api`.
+- `AUTH_MODE=jwt`: requires backend-only `JWT_SECRET` (at least 32 characters), `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, and `APP_WEB_URL` (an exact HTTPS origin in production). Defaults for `JWT_ISSUER` and `JWT_AUDIENCE` are `pair-habits` and `pair-habits-api`.
 - `AUTH_MODE=local`: signed development/test tokens only; forbidden in production. Password login, signup and verification are disabled. Existing local token tooling remains available.
 - `CORS_ORIGINS`: exact browser origin, such as `http://localhost:8081` locally or this Vercel project's HTTPS origin. No wildcard.
 - `EXPO_PUBLIC_API_URL`: public API base ending in `/api/v1`. The one-project Vercel build sets `/api/v1`; local web can use `http://localhost:3001/api/v1`. Never put backend secrets in `EXPO_PUBLIC_*`.

@@ -29,9 +29,13 @@ export function validateEnvironment(env: Record<string, unknown>) {
     if (typeof env.JWT_SECRET !== 'string' || env.JWT_SECRET.length < 32) {
       throw new Error('JWT_SECRET must contain at least 32 characters');
     }
-    if (typeof env.SMTP_USER !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.SMTP_USER) ||
-      typeof env.SMTP_APP_PASSWORD !== 'string' || !env.SMTP_APP_PASSWORD.trim()) {
-      throw new Error('SMTP_USER and SMTP_APP_PASSWORD are required for JWT authentication');
+    const smtpPort = Number(env.SMTP_PORT);
+    if (typeof env.SMTP_HOST !== 'string' || !env.SMTP_HOST.trim() ||
+      !Number.isInteger(smtpPort) || smtpPort < 1 || smtpPort > 65535 ||
+      typeof env.SMTP_USER !== 'string' || !env.SMTP_USER.trim() ||
+      typeof env.SMTP_PASSWORD !== 'string' || !env.SMTP_PASSWORD.trim() ||
+      typeof env.SMTP_FROM !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.SMTP_FROM)) {
+      throw new Error('Valid SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and SMTP_FROM are required for JWT authentication');
     }
     try {
       const url = new URL(String(env.APP_WEB_URL));
