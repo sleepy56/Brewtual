@@ -4,6 +4,8 @@ import { AppText, Avatar, Button, Card, Chip, Icon, SectionHeading } from '../co
 import { useTheme } from '../theme';
 import type { Goal, GoalStatus } from '../demo';
 import type { PersonId } from '../types';
+import { addDays, weekday, weekStart } from '../live/calendar';
+import { useDemo } from '../demo';
 
 export function PageTitle({ eyebrow, title, subtitle }: { eyebrow?: string; title: string; subtitle?: string }) {
   const { theme } = useTheme();
@@ -20,32 +22,34 @@ export function Section({ title, actionLabel, onAction }: { title: string; actio
 
 export function GoalTile({ goal, person, onPress, onCheck, interactive = true }: { goal: Goal; person: PersonId; onPress?: () => void; onCheck?: () => void; interactive?: boolean }) {
   const { theme } = useTheme();
-  const checkedToday = goal.checks.includes('2026-10-14');
-  const currentWeekCount = goal.checks.filter(date => date >= '2026-10-12' && date <= '2026-10-18').length;
+  const { today, names } = useDemo();
+  const monday = weekStart(today);
+  const checkedToday = goal.checks.includes(today);
+  const currentWeekCount = goal.checks.filter(date => date >= monday && date <= addDays(monday, 6)).length;
   const statusLabel: Record<GoalStatus, string> = {
-    active: `+${goal.tokens} tokens`, proposed: 'Needs a yes', scheduled: 'Starts 19 Oct', rejected: 'Declined', 'claim-pending': 'Review pending', complete: 'Complete',
+    active: `+${goal.tokens} tokens`, proposed: 'Needs a yes', scheduled: `Starts ${goal.startDate}`, rejected: 'Declined', 'claim-pending': 'Review pending', complete: 'Complete',
   };
   return <Card style={styles.goalCard}>
     <View style={styles.goalHeader}>
       <View style={[styles.goalGlyph, { backgroundColor: theme.accentSoft }]}><Icon name={goal.glyph} color={theme.accent} size={19} /></View>
       {interactive ? <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`View ${goal.title}`} style={styles.goalName}>
         <AppText style={styles.goalTitle}>{goal.title}</AppText>
-        <AppText variant="caption" color={theme.muted}>{goal.type === 'recurring' ? `${goal.days.map(d => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d]).join(' · ')}  ·  ${goal.required} days / week` : 'One-time milestone'}{goal.owner !== person ? `  ·  ${goal.owner === 'alex' ? 'Alex' : 'Jamie'}` : ''}</AppText>
+        <AppText variant="caption" color={theme.muted}>{goal.type === 'recurring' ? `${goal.days.map(d => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d]).join(' · ')}  ·  ${goal.required} days / week` : 'One-time milestone'}{goal.owner !== person ? `  ·  ${names[goal.owner]}` : ''}</AppText>
       </Pressable> : <View style={styles.goalName}>
         <AppText style={styles.goalTitle}>{goal.title}</AppText>
-        <AppText variant="caption" color={theme.muted}>{goal.type === 'recurring' ? `${goal.days.map(d => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d]).join(' · ')}  ·  ${goal.required} days / week` : 'One-time milestone'}{goal.owner !== person ? `  ·  ${goal.owner === 'alex' ? 'Alex' : 'Jamie'}` : ''}</AppText>
+        <AppText variant="caption" color={theme.muted}>{goal.type === 'recurring' ? `${goal.days.map(d => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d]).join(' · ')}  ·  ${goal.required} days / week` : 'One-time milestone'}{goal.owner !== person ? `  ·  ${names[goal.owner]}` : ''}</AppText>
       </View>}
       <Chip label={statusLabel[goal.status]} tone={goal.status === 'active' ? 'accent' : 'muted'} />
     </View>
     {goal.type === 'recurring' && goal.status === 'active' ? <>
       <View style={styles.weekRow}>{['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((label, index) => {
-        const date = `2026-10-${String(12 + index).padStart(2, '0')}`;
+        const date = addDays(monday, index);
         const done = goal.checks.includes(date);
         const scheduled = goal.days.includes(index);
-        const currentDay = index === 2;
+        const currentDay = index === weekday(today);
         return <View key={`${index}-${label}`} style={styles.weekDay}>
           <AppText variant="caption" color={theme.muted} style={{ fontSize: 9 }}>{label}</AppText>
-          <View style={[styles.dayCircle, { backgroundColor: done ? theme.accent : theme.surface, borderColor: currentDay ? theme.accent : theme.border }]}><AppText variant="caption" color={done ? theme.accentText : scheduled ? theme.text : theme.muted} style={{ fontSize: 10, fontWeight: currentDay ? '700' : '400' }}>{done ? '✓' : 12 + index}</AppText></View>
+          <View style={[styles.dayCircle, { backgroundColor: done ? theme.accent : theme.surface, borderColor: currentDay ? theme.accent : theme.border }]}><AppText variant="caption" color={done ? theme.accentText : scheduled ? theme.text : theme.muted} style={{ fontSize: 10, fontWeight: currentDay ? '700' : '400' }}>{done ? '✓' : Number(date.slice(-2))}</AppText></View>
         </View>;
       })}</View>
       <View style={styles.progressText}><AppText variant="caption" color={theme.muted}>{currentWeekCount} of {goal.required} needed this week</AppText><AppText variant="caption" color={theme.accent}>{Math.max(0, goal.required - currentWeekCount)} to go</AppText></View>
@@ -53,7 +57,7 @@ export function GoalTile({ goal, person, onPress, onCheck, interactive = true }:
     </> : <AppText color={theme.muted} style={styles.goalDescription}>{goal.description}</AppText>}
     <View style={[styles.goalBottom, { borderTopColor: theme.border }]}>
       <AppText variant="caption" color={theme.muted}>{goal.status === 'active' ? 'Awarded after Sunday' : goal.status === 'proposed' ? 'Waiting for partner approval' : 'Agreement details'}</AppText>
-      {goal.owner === person && goal.type === 'recurring' && goal.status === 'active' && goal.days.includes(2) && onCheck ? <Button label={checkedToday ? 'Done today · Undo' : 'Mark done'} onPress={onCheck} variant={checkedToday ? 'secondary' : 'primary'} icon={checkedToday ? 'check' : 'plus'} /> : interactive ? <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`View ${goal.title}`} style={[styles.viewLink, { flexDirection: 'row', alignItems: 'center' }]}><AppText color={theme.accent}>View</AppText><Icon name="arrow" color={theme.accent} size={14} /></Pressable> : null}
+      {goal.owner === person && goal.type === 'recurring' && goal.status === 'active' && goal.days.includes(weekday(today)) && onCheck ? <Button label={checkedToday ? 'Done today · Undo' : 'Mark done'} onPress={onCheck} variant={checkedToday ? 'secondary' : 'primary'} icon={checkedToday ? 'check' : 'plus'} /> : interactive ? <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`View ${goal.title}`} style={[styles.viewLink, { flexDirection: 'row', alignItems: 'center' }]}><AppText color={theme.accent}>View</AppText><Icon name="arrow" color={theme.accent} size={14} /></Pressable> : null}
     </View>
   </Card>;
 }

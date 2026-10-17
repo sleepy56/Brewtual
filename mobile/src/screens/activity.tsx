@@ -8,7 +8,7 @@ import type { ScreenProps } from '../types';
 import { ConfirmationDialog, Notice, PageTitle } from './shared';
 
 export default function ActivityScreen({ navigate }: ScreenProps) {
-  const { person, ledger, requests, balance, actions } = useDemo();
+  const { person, ledger, requests, balance, actions, names, busy, mode } = useDemo();
   const { theme } = useTheme();
   const [review, setReview] = useState<RewardRequest | null>(null);
   const [feedback, setFeedback] = useState('');
@@ -26,9 +26,9 @@ export default function ActivityScreen({ navigate }: ScreenProps) {
     {feedback ? <Notice tone={feedbackOk ? 'success' : 'warning'}>{feedback}</Notice> : null}
     <View style={{ marginTop: 20 }}><SectionHeading title="Plans in motion" /></View>
     {relatedRequests.length ? relatedRequests.map(request => <Card key={request.id} style={{ marginBottom: 12 }}>
-      <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}><View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: theme.accentSoft, alignItems: 'center', justifyContent: 'center' }}><Icon name="gift" color={theme.accent} size={18} /></View><View style={{ flex: 1 }}><AppText style={{ fontWeight: '600' }}>{request.title}</AppText><AppText variant="caption" color={theme.muted} style={{ marginTop: 3 }}>{request.member === 'alex' ? 'Alex' : 'Jamie'} requested from {request.offerer === 'alex' ? 'Alex' : 'Jamie'} · {request.date}</AppText></View><Chip label={request.status === 'fulfilled' ? 'Fulfilled' : 'Requested'} tone={request.status === 'fulfilled' ? 'accent' : 'warning'} /></View>
+      <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}><View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: theme.accentSoft, alignItems: 'center', justifyContent: 'center' }}><Icon name="gift" color={theme.accent} size={18} /></View><View style={{ flex: 1 }}><AppText style={{ fontWeight: '600' }}>{request.title}</AppText><AppText variant="caption" color={theme.muted} style={{ marginTop: 3 }}>{names[request.member]} requested from {names[request.offerer]} · {request.date}</AppText></View><Chip label={request.status === 'fulfilled' ? 'Fulfilled' : 'Requested'} tone={request.status === 'fulfilled' ? 'accent' : 'warning'} /></View>
       <AppText variant="caption" color={theme.muted} style={{ marginTop: 13 }}>{request.expectation} · cost snapshot: {request.cost} tokens</AppText>
-      {request.status === 'requested' && request.offerer === person ? <Button label="Mark fulfilled" onPress={() => setReview(request)} variant="secondary" style={{ alignSelf: 'flex-start', marginTop: 9 }} /> : <AppText variant="caption" color={theme.muted} style={{ marginTop: 9 }}>{request.status === 'fulfilled' ? (request.offerer === person ? 'You marked this fulfilled.' : 'Your partner marked this fulfilled.') : `Waiting for ${request.offerer === 'alex' ? 'Alex' : 'Jamie'} to acknowledge fulfillment.`}</AppText>}
+      {request.status === 'requested' && request.offerer === person ? <Button label="Mark fulfilled" disabled={busy} onPress={() => setReview(request)} variant="secondary" style={{ alignSelf: 'flex-start', marginTop: 9 }} /> : <AppText variant="caption" color={theme.muted} style={{ marginTop: 9 }}>{request.status === 'fulfilled' ? (request.offerer === person ? 'You marked this fulfilled.' : 'Your partner marked this fulfilled.') : `Waiting for ${names[request.offerer]} to acknowledge fulfillment.`}</AppText>}
     </Card>) : <Card><AppText variant="caption" color={theme.muted}>Your next reward request will appear here.</AppText></Card>}
     <View style={{ marginTop: 18 }}><SectionHeading title="Your token history" actionLabel="Append-only" /></View>
     <Card style={{ paddingVertical: 0 }}>
@@ -36,15 +36,13 @@ export default function ActivityScreen({ navigate }: ScreenProps) {
         <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: theme.surface2, alignItems: 'center', justifyContent: 'center' }}><Icon name={entry.amount > 0 ? 'leaf' : 'gift'} color={entry.amount > 0 ? theme.success : theme.warning} size={17} /></View>
         <View style={{ flex: 1 }}><AppText style={{ fontWeight: '500' }}>{entry.title}</AppText><AppText variant="caption" color={theme.muted} style={{ marginTop: 3 }}>{entry.detail} · {entry.date}</AppText></View>
         <AppText style={{ fontSize: 16, color: entry.amount > 0 ? theme.success : theme.warning, fontWeight: '600' }}>{entry.amount > 0 ? '+' : '−'}{Math.abs(entry.amount)}</AppText>
-      </View>) : <AppText color={theme.muted} style={{ padding: 12 }}>Qualifying weeks and approved milestones add tokens here.</AppText>}
+      </View>) : <AppText color={theme.muted} style={{ padding: 12 }}>Qualifying goal weeks add tokens here.</AppText>}
     </Card>
-    <View style={{ marginTop: 12 }}><AppText variant="caption" color={theme.muted}>Records explain every award and spend. This local demo does not grant weekly tokens automatically.</AppText></View>
+      <View style={{ marginTop: 12 }}><AppText variant="caption" color={theme.muted}>{mode === 'live' ? 'Records explain every award and spend. Qualifying weeks are settled in the pair timezone.' : 'Records explain every award and spend. This local demo does not grant weekly tokens automatically.'}</AppText></View>
     <ConfirmationDialog visible={!!review} title="Acknowledge this plan?" message={review ? `Mark “${review.title}” fulfilled? This records your acknowledgment. The token history stays unchanged.` : ''} confirmLabel="Mark fulfilled" onCancel={() => setReview(null)} onConfirm={() => {
       if (!review) return;
-      const result = actions.fulfillReward(review.id);
+      void Promise.resolve(actions.fulfillReward(review.id)).then(result => { setFeedback(result.message); setFeedbackOk(result.ok); });
       setReview(null);
-      setFeedback(result.message);
-      setFeedbackOk(result.ok);
     }} />
   </Screen>;
 }

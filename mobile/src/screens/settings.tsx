@@ -17,9 +17,17 @@ const choices: { name: ThemeName; title: string; caption: string }[] = [
 export default function SettingsScreen(_: ScreenProps) {
   const [confirmReset, setConfirmReset] = useState(false);
   const { theme, themeName, setTheme, persistenceError: themePersistenceError } = useTheme();
-  const { person, actions, persistenceError } = useDemo();
+  const { person, actions, persistenceError, mode, names, accountEmail, pairName, timezone, signOut, busy } = useDemo();
   const partner = person === 'alex' ? 'jamie' : 'alex';
   const personName = person === 'alex' ? 'Alex' : 'Jamie';
+  if (mode === 'live') return <Screen>
+    <PageTitle eyebrow="YOUR ACCOUNT" title="Settings" subtitle="Your shared space and account." />
+    <Card style={{ gap: 8 }}><AppText variant="eyebrow" color={theme.accent}>SIGNED IN</AppText><AppText>{accountEmail}</AppText><AppText variant="caption" color={theme.muted}>Pair: {pairName}</AppText><AppText variant="caption" color={theme.muted}>Members: {names.alex} + {names.jamie}</AppText><AppText variant="caption" color={theme.muted}>Pair timezone: {timezone}</AppText></Card>
+    <View style={{ marginTop: 22, marginBottom: 10 }}><AppText variant="heading" style={{ fontSize: 20 }}>Set the mood</AppText></View>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 }}>{choices.map(choice => { const selected = themeName === choice.name; const palette = themes[choice.name]; return <Pressable key={choice.name} onPress={() => setTheme(choice.name)} accessibilityRole="radio" accessibilityState={{ checked: selected }} style={{ width: '48%', minHeight: 126, borderRadius: 17, padding: 11, borderWidth: selected ? 2 : 1, borderColor: selected ? theme.accent : theme.border, backgroundColor: theme.surface }}><View style={{ height: 54, borderRadius: 10, backgroundColor: palette.bg, padding: 8 }}><View style={{ width: '54%', height: 36, borderRadius: 8, backgroundColor: palette.accent }} /></View><AppText style={{ fontWeight: '600', marginTop: 8 }}>{choice.title}</AppText></Pressable>; })}</View>
+    {themePersistenceError ? <Notice tone="warning">Theme changes could not be saved on this device.</Notice> : null}
+    <Button label={busy ? 'Signing out…' : 'Sign out'} icon="logout" disabled={busy} variant="secondary" onPress={() => void signOut?.()} style={{ marginTop: 22 }} />
+  </Screen>;
   return <Screen>
     <PageTitle eyebrow="MAKE YOURSELF AT HOME" title="Your little corner of the app." subtitle="A few preferences, a little personality." />
     {persistenceError || themePersistenceError ? <Notice tone="warning">This device could not save some demo preferences. Your changes remain visible while the app stays open; storage will be retried after another change.</Notice> : null}

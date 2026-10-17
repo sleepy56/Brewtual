@@ -58,7 +58,13 @@ export class PairsService {
   }
 
   async current(userId: string) {
-    return this.pairAccess.requirePair(userId);
+    const membership = await this.pairAccess.requirePair(userId);
+    const members = await this.prisma.membership.findMany({
+      where: { pairId: membership.pairId },
+      select: { slot: true, user: { select: { id: true, email: true } } },
+      orderBy: { slot: 'asc' },
+    });
+    return { ...membership, members };
   }
 
   async createInvite(user: AuthenticatedUser, email: string) {
@@ -87,9 +93,7 @@ export class PairsService {
           },
           select: { id: true },
         });
-        if (pending) {
-          throw new ConflictException('An active invite already exists for this pair');
-        }
+        if (pending) await tx.invite.update({ where: { id: pending.id }, data: { expiresAt: now } });
 
         await tx.invite.create({
           data: {

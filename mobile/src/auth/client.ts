@@ -5,7 +5,7 @@ export type Account = { id: string; email: string };
 type Session = { accessToken: string; user: Account };
 const native = Platform.OS !== 'web';
 const KEY = 'pair-habits-refresh';
-const API = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+const API = (process.env.EXPO_PUBLIC_API_URL || (native ? '' : '/api/v1')).replace(/\/$/, '');
 let accessToken: string | null = null;
 let refreshPending: Promise<Account> | null = null;
 
@@ -25,6 +25,28 @@ async function request(path: string, body: object) {
   } catch { throw new AuthError('Cannot reach Pair Habits. Check your connection and try again.'); }
   if (!response.ok) throw new AuthError(response.status === 429 ? 'Too many attempts. Wait a minute and try again.' : response.status === 401 ? 'Sign-in failed or your session expired. Please try again.' : 'Sign-in is unavailable. Please try again later.', response.status);
   return response.json();
+}
+
+export const signup = (email: string, password: string) => request('signup', { email: email.trim().toLowerCase(), password, client: native ? 'native' : 'web' });
+export const resendVerification = (email: string) => request('verify/resend', { email: email.trim().toLowerCase(), client: native ? 'native' : 'web' });
+export const confirmVerification = (email: string, token: string, password: string) => request('verify/confirm', { email: email.trim().toLowerCase(), token, password, client: native ? 'native' : 'web' });
+
+export async function apiRequest<T>(path: string, method = 'GET', body?: object, key?: string): Promise<T> {
+  if (!API) throw new AuthError('Set EXPO_PUBLIC_API_URL for native builds.');
+  async function send() {
+    try { return await fetch(`${API}${path}`, { method, credentials: native ? 'omit' : 'include',
+      headers: { ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}), ...(key ? { 'Idempotency-Key': key } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(15000) }); }
+    catch { throw new AuthError('Cannot reach Pair Habits. Check your connection and try again.'); }
+  }
+  let response = await send();
+  if (response.status === 401) { await refreshSession(); response = await send(); }
+  if (!response.ok) {
+    let message = 'The request failed. Please try again.';
+    try { const data = await response.json(); if (typeof data.message === 'string') message = data.message; } catch { /* Keep the safe fallback. */ }
+    throw new AuthError(message, response.status);
+  }
+  return response.json() as Promise<T>;
 }
 
 async function remember(session: Session & { refreshToken?: string }): Promise<Account> {
@@ -68,9 +90,8 @@ export function refreshSession(): Promise<Account> {
 export async function signOut() {
   // Finish any in-flight rotation before revoking its replacement credential.
   if (refreshPending) await refreshPending.catch(() => {});
-  await request('logout', await refreshBody());
-  accessToken = null;
-  if (native) await SecureStore.deleteItemAsync(KEY);
+  try { await request('logout', await refreshBody()); }
+  finally { accessToken = null; if (native) await SecureStore.deleteItemAsync(KEY); }
 }
 
 export async function loadAccount(): Promise<Account> {
