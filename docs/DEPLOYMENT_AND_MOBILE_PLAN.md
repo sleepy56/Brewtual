@@ -1,39 +1,56 @@
-# One-project Vercel deployment
+# Next.js web/API and Expo phone deployment
 
-The repository keeps the NestJS API in `backend/` and Expo in `mobile/`. One Vercel project imports the **repository root**, builds the API and static web together, and serves both on the same HTTPS origin. The checked-in `vercel.json` chooses the Express preset, root `src/index.ts` as the server entrypoint, `public` as the static output, and Singapore (`sin1`) for the function. The Nest application retains its `/api/v1` prefix. Static `/verify-email` loads the app shell; the email token is consumed only by a POST. The app code is ready for deployment; Vercel, Neon, and email provider setup remain for the owner.
+The repository root is one Next.js app, deployed as one Vercel project. The website uses ordinary React/TypeScript and the API uses Next.js Node route handlers. The existing Expo phone app remains in `mobile/` and calls the same `/api/v1` endpoints. Neon data, table names, passwords, session signing settings and the Prisma migration history are preserved. This framework migration needs no database reset or new migration.
 
-## Vercel project settings
+## Vercel settings
 
 | Setting | Value |
 | --- | --- |
-| Repository Root Directory | Repository root, not `backend` or `mobile` |
-| Framework Preset | Express |
-| Node.js Version | 24 |
-| Install Command | `npm ci --include=dev` (root workspace lockfile; backend TypeScript and Expo build tools are required during build) |
-| Build Command | `npm run build:vercel` |
-| Output Directory | Leave the override disabled/default; Vercel serves the generated `public/` folder as static assets while the Express entrypoint stays at the repository root |
-| Function region | `sin1` |
+| Root Directory | Repository root, not `mobile` or the old `backend` |
+| Framework Preset | Next.js |
+| Node.js | 24.x |
+| Install Command | `npm ci --include=dev` |
+| Build Command | `npm run build` |
+| Output Directory | Leave override disabled/default (`.next` is managed by Next.js) |
+| Function region | Singapore (`sin1`), set in `vercel.json` |
 
-`npm run build:vercel` runs Prisma generation and TypeScript compilation in the existing backend, then exports Expo web to `public` with `EXPO_PUBLIC_API_URL=/api/v1`. Keep Vercel's Output Directory override disabled: with the Express preset, the root `src/index.ts` is the API entrypoint and Vercel serves `public/**` as static assets. The bundle contains only this public same-origin path, never the database, JWT or SMTP credentials. The `/api/v1` routes are handled by the root NestJS entrypoint through Vercel's Express support. The build does **not** apply migrations. Deploy reviewed migrations once per target database using `npm run db:migrate` with the direct Neon URL before serving the new API.
+For an existing Express project, change the dashboard preset to Next.js and clear any old `public` output override. Deploy the new commit. The repository no longer has an Express entrypoint or an Expo export build for the website. `/` and `/verify-email` are Next.js pages; `/api/v1/[...path]` is the dynamic Node API. The website's static shell loads even when the database is unavailable.
 
-| Environment variable | Value and location |
+## Server environment
+
+Set these in Vercel Environment Variables for Production. Keep secrets out of `NEXT_PUBLIC_*` and `EXPO_PUBLIC_*`.
+
+| Variable | Value |
 | --- | --- |
-| `NODE_ENV`, `AUTH_MODE` | `production`, `jwt`; backend only |
-| `DATABASE_URL` | Pooled Neon PostgreSQL URL for runtime; backend only |
-| `DATABASE_URL_UNPOOLED` | Direct Neon URL for Prisma migration tooling; backend only |
-| `JWT_SECRET` | Random secret of at least 32 characters; backend only |
-| `JWT_ISSUER`, `JWT_AUDIENCE` | `pair-habits`, `pair-habits-api`; backend only |
-| `SMTP_HOST`, `SMTP_PORT` | Provider SMTP endpoint; backend only (Resend: `smtp.resend.com`, `465`) |
-| `SMTP_USER`, `SMTP_PASSWORD` | Provider SMTP credentials; backend only (Resend: `resend` and API key) |
-| `SMTP_FROM` | Sender email on the verified sending domain; backend only |
-| `APP_WEB_URL` | Exact HTTPS origin of this Vercel project, no path or trailing slash; backend only |
-| `CORS_ORIGINS` | The same exact HTTPS origin for browser auth; backend only |
-| `DB_TRANSACTION_MAX_WAIT_MS`, `DB_TRANSACTION_TIMEOUT_MS` | Defaults 10000 and 30000; backend only |
+| `DATABASE_URL` | Existing pooled Neon PostgreSQL connection URL with TLS |
+| `DATABASE_URL_UNPOOLED` | Existing direct Neon URL for migration commands |
+| `AUTH_MODE` | `jwt` |
+| `JWT_SECRET` | Existing random signing secret of at least 32 characters |
+| `JWT_ISSUER` | `pair-habits` |
+| `JWT_AUDIENCE` | `pair-habits-api` |
+| `APP_WEB_URL` | Exact HTTPS origin, such as `https://pair-habit.vercel.app` |
+| `CORS_ORIGINS` | Same exact browser origin; comma-separated if more than one is intentionally allowed |
+| `DB_TRANSACTION_MAX_WAIT_MS` | `10000`, or omit for this default |
+| `DB_TRANSACTION_TIMEOUT_MS` | `30000`, or omit for this default |
 
-Vercel supplies `PORT`. A custom domain is optional for hosting the web app and API, but a sending provider such as Resend requires a verified domain for production sender addresses. Keep `LOCAL_AUTH_SECRET`, `TEST_DATABASE_URL` and local auth mode out of production. For preview deployments, set `APP_WEB_URL` and `CORS_ORIGINS` to the exact preview origin when testing signup; a production-only value will not authorize browser POSTs on a different preview origin. Same-origin hosting lets the existing SameSite Strict, Secure, HttpOnly refresh cookie work without a second domain or cross-site cookie policy.
+SMTP is optional for deployment and existing verified accounts. To enable public signup/resend, add `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`. For Resend SMTP, use `smtp.resend.com`, port `465`, username `resend`, the API key as the password and a verified-domain sender. No SMTP means signup/resend return 503; verification is never bypassed. [Authentication details](AUTHENTICATION_PLAN.md).
 
-## Checks and scope
+Keep `AUTH_MODE=local`, `LOCAL_AUTH_SECRET` and `TEST_DATABASE_URL` out of production. Next.js manages `NODE_ENV` and `PORT`. Existing production migrations need not be rerun for this change; new databases use `npm run db:migrate` with the direct URL. Builds only generate the Prisma client and Next.js output.
 
-Run `npm test`, `npm run typecheck`, `npm run mobile:typecheck`, and `npm run test:vercel` (build plus static/routing check). Database integration tests require `TEST_DATABASE_URL` for disposable local PostgreSQL schemas; do not point them at Neon. Verify the deployment's static `/`, static assets, `/verify-email`, `/api/v1/health`, `/api/v1/health/ready` and auth routes after you deploy. See [authentication and TASK-002 client contract](AUTHENTICATION_PLAN.md) for the verification flow.
+For preview signup tests, use preview-specific `APP_WEB_URL` and `CORS_ORIGINS`. Browser refresh cookies remain HttpOnly, SameSite Strict and Secure in production; web and API share one origin.
 
-The web export is static, while the app remains dynamic: authenticated screens load and mutate pair, habit, reward, wallet, and activity data through the Nest API and Neon. SMTP settings are optional for deployment; signup and resend return 503 until a mail provider is configured. Once enabled, signup creates an unverified pending account; the user follows the emailed link and confirms using the signup password before login. Existing accounts and data are preserved by the migration; existing account owners verify using their current password. The fictional local demo is separate from authenticated live data. Local `AUTH_MODE=local` token tooling is retained for development/test only. Native apps can use the same HTTPS API origin, with refresh credentials in SecureStore. A Vercel web deployment can be added to the phone Home Screen; native iOS/Android packages are separate Expo builds.
+## Verify a deployment
+
+1. Open `/`: the sign-in page should load.
+2. Open `/verify-email`: the verification page should load without consuming a token on GET.
+3. Open `/api/v1/health`: expect 200 and `{"status":"ok"}`.
+4. Open `/api/v1/health/ready`: expect 200 and `{"status":"ready"}`. A 503 here indicates configuration or database connectivity trouble; it should not crash the website.
+5. Sign in with an existing verified account, or configure SMTP and create/verify a new account. Test pair access and one habit mutation.
+
+Local `npm run test:vercel` builds and starts the production server with `require(esm)` disabled, checks the pages and API, and verifies the website survives an unavailable database. `npm run test:integration` covers real local PostgreSQL transactions using isolated schemas and fake email. Neither check touches Neon or sends email.
+
+## Expo on a phone
+
+Set `EXPO_PUBLIC_API_URL=https://pair-habit.vercel.app/api/v1` in `mobile/.env`, then restart Expo with `npm run mobile`. Use the development QR workflow supported by your Expo SDK. Native iOS/Android release builds are separate Expo builds; Vercel hosts their API, not their installation packages. Browser Home Screen shortcuts use the responsive Next.js website instead.
+
+For local phone development, use your computer's LAN IP on port 3000 rather than localhost. The native API contract and SecureStore refresh-token transport are unchanged. Optional `npm run mobile:web` previews the existing Expo UI in a browser, while `npm run dev` opens the Next.js website.

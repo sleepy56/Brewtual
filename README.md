@@ -2,36 +2,50 @@
 
 A private app for two adults to agree on habits and earn tokens toward shared rewards.
 
-The React Native + Expo client runs on Android, iOS and web. Browser widths of 900px or more use desktop side navigation; phones use bottom tabs. Four themes and fictional demo state are saved locally.
+**Next.js + TypeScript** hosts the website and `/api/v1` API in one Vercel project. **React Native + Expo** remains the Android/iOS client. Both use the same Neon PostgreSQL database through Prisma. There is no NestJS runtime, dependency injection container, or custom Express server.
 
-Email/password signup, verification and sign-in connect to the NestJS/PostgreSQL API. Authenticated members create or join a pair and use its live habits, approvals, rewards, wallet and activity. The fictional demo is a separate entry from the signed-out screen. Access tokens stay in memory, browser refresh credentials use HttpOnly cookies, and native refresh credentials use Expo SecureStore. Only fictional demo state and theme preference use AsyncStorage.
+The website supports signup, email verification, login, pair invitations, habit proposals and approvals, daily check-ins, weekly token awards, reward redemption and fulfillment. Midnight, Dawn, Plum and Ocean themes work on desktop and phone layouts. Expo retains its existing live screens and separate fictional demo.
 
 ## Run locally
 
-Use Node 24.9 or newer and install dependencies from the repository root.
+Use Node 24.9 or newer within Node 24, and install from the repository root with `npm ci`.
 
-1. Configure the database using `backend/.env.example`, then run `npm run db:generate` and `npm run db:migrate`.
-2. For signup, set backend `AUTH_MODE=jwt`, a random `JWT_SECRET` (at least 32 characters), `APP_WEB_URL=http://localhost:8081`, and provider SMTP settings. For Resend, use `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`, `SMTP_USER=resend`, your Resend API key as `SMTP_PASSWORD`, and a sender on your verified domain as `SMTP_FROM`. Set `CORS_ORIGINS=http://localhost:8081`. `AUTH_MODE=local` remains available only in development/test and needs no mail provider.
-3. Optionally provision a trusted account using the secure PowerShell input below. This operator command changes an existing password and revokes sessions; public signup never overwrites accounts.
-4. The deployed web app uses same-origin `/api/v1` by default. For local Expo web, set `EXPO_PUBLIC_API_URL=http://localhost:3001/api/v1`; for a native phone, use your computer’s LAN address instead.
-5. Run `npm run dev` and, in another terminal, `npm run web` (port 8081) or `npm run mobile`. Restart Expo after environment changes.
+1. Run `npm run local:setup` to create a root `.env` from [.env.example](.env.example) with a random signing key, or configure that file yourself. Existing environment files under the old `backend/` directory are preserved but are no longer loaded; move the values you need into the root `.env`. Never commit that file.
+2. Configure `DATABASE_URL` and `DATABASE_URL_UNPOOLED`. For local PostgreSQL, `docker compose up -d` uses the example connection on port 5433. Run `npm run db:generate` and `npm run db:migrate` for a new local database. The Next.js migration does not change the schema or require a new Neon migration if the existing migrations were already applied.
+3. Use `AUTH_MODE=jwt`, a strong `JWT_SECRET`, `APP_WEB_URL=http://localhost:3000` and `CORS_ORIGINS=http://localhost:3000,http://localhost:8081`. SMTP is optional for startup and existing-account login. Public signup and resend require SMTP and return 503 until it is configured; email verification remains mandatory.
+4. Run `npm run dev`, then open `http://localhost:3000`. This starts both web and API. Production checks use `npm run build` followed by `npm start`.
+5. For Expo, set `EXPO_PUBLIC_API_URL` in `mobile/.env` to `http://YOUR-COMPUTER-LAN-IP:3000/api/v1` or the deployed HTTPS API. Run `npm run mobile` separately and restart Expo after environment changes. `npm run mobile:web` is the optional Expo browser preview.
+
+To provision your own trusted account while SMTP is unavailable:
 
 ```powershell
 $accountPassword = Read-Host 'New individual password (15–128 characters)' -MaskInput
-$accountPassword | npm run auth:provision -- alex@example.com
+$accountPassword | npm run auth:provision -- your-email@example.com
 Remove-Variable accountPassword
 ```
 
-`-MaskInput` requires PowerShell 7. Passwords are read through stdin, never command arguments. Do not paste a literal password into shell history.
+`-MaskInput` requires PowerShell 7. The command reads passwords from stdin. It creates/verifies the account, or replaces an existing password and revokes its sessions. Public signup never overwrites an account.
 
-## One Vercel project
+## Vercel
 
-Import the **repository root** as one Vercel project. Use Node 24, Framework Preset **Express**, Install Command `npm ci --include=dev`, and Build Command `npm run build:vercel` (set in `vercel.json`). Leave the Output Directory override disabled/default: the root `src/index.ts` is the API entrypoint and Vercel serves Expo's generated `public/` folder as static assets. The install includes TypeScript declarations and Expo tools required at build time, even if the deployment sets `NODE_ENV=production`. The build compiles the existing NestJS backend, exports Expo web to `public`, and embeds the same-origin public API URL `/api/v1`. The root server entrypoint runs NestJS with its existing `/api/v1` prefix; Vercel serves static assets and the Express function in one deployment. `/verify-email` serves the app shell; the client reads the email-link fragment, removes it from browser history and confirms only through the explicit API `POST`.
+Import the **repository root**. Set Framework Preset to **Next.js**, Node to **24.x**, Install Command to `npm ci --include=dev`, Build Command to `npm run build`, and leave the Output Directory override disabled/default. If this project previously used Express or `public`, reset those dashboard overrides before redeploying. The checked-in `vercel.json` selects Next.js and Singapore (`sin1`).
 
-Set backend-only `DATABASE_URL` (Neon pooled), `AUTH_MODE=jwt`, `JWT_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE`, `APP_WEB_URL` (the project's exact HTTPS origin), and `CORS_ORIGINS` (the same origin). SMTP settings are optional until you are ready to send signup emails. To enable them with Resend, set `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`, `SMTP_USER=resend`, the Resend API key as `SMTP_PASSWORD`, and a sender on your verified domain as `SMTP_FROM`. Without SMTP, the API still starts but signup and resend return 503. Keep secrets out of `EXPO_PUBLIC_*`. Apply the additive migration once with `npm run db:migrate` from your own deployment workflow; the build does not migrate the database. The migration preserves existing accounts and data but does not mark old accounts verified. Existing account owners must request a verification email and confirm with their current password before signing in. Configure preview deployments with matching `APP_WEB_URL` and `CORS_ORIGINS` if you intend to test signup on preview URLs. No deployment or external service setup was performed here.
+Keep the existing Neon URLs, signing secret and auth settings. `APP_WEB_URL` and `CORS_ORIGINS` must match the exact site origin, such as `https://pair-habit.vercel.app`, without a trailing slash. [.env.vercel.example](.env.vercel.example) lists server variables. SMTP can remain unset. Builds generate Prisma and Next.js output; they never apply migrations or send email.
 
-See [authentication and TASK-002 API contract](docs/AUTHENTICATION_PLAN.md) for request bodies, responses, limits, pair setup and the verification link format. Add the deployed site to a phone Home Screen for an installable browser shortcut; a native iOS/Android app is a separate Expo build and needs a reachable native API URL. Neither changes the one Vercel web deployment.
+After deployment, `/api/v1/health` should return `{"status":"ok"}` and `/api/v1/health/ready` should return `{"status":"ready"}`. Readiness returns 503 if PostgreSQL is unavailable. The website loads independently of database availability.
+
+## Where to debug
+
+- `app/page.tsx`, `app/verify-email/page.tsx`: website pages.
+- `src/web/pair-habits.tsx`, `src/web/client.ts`: React screens and browser session/API transport.
+- `app/api/v1/[...path]/route.ts`: Next.js Node route entrypoint.
+- `src/server/api.ts`, `src/server/schemas.ts`: HTTP routing, validation, origin checks, cookies, rate limits and safe errors.
+- `src/server/auth`, `pairs`, `goals`, `rewards`, `wallet`: ordinary TypeScript business logic, with explicit constructor dependencies in `src/server/services.ts`.
+- `prisma/`: unchanged schema and migration history.
+- `mobile/`: Expo phone client, using the same `/api/v1` contract.
 
 ## Checks
 
-`npm test`, `npm run typecheck`, `npm run mobile:typecheck`, and `npm run test:vercel` (build plus static/routing check). Database integration tests require `TEST_DATABASE_URL` pointing to disposable local PostgreSQL; they create and remove an isolated schema, and replace verification mail with a fake service that captures tokens without sending email. See [authentication](docs/AUTHENTICATION_PLAN.md), [mobile client](mobile/README.md), and [backend contract](docs/BACKEND_CONTRACT.md).
+Run `npm test`, `npm run typecheck`, `npm run mobile:test`, and `npm run mobile:typecheck`. `npm run test:vercel` builds Next.js and starts the actual production server with Lambda-style module restrictions, then checks website pages, API health, auth validation and behavior during a database outage.
+
+`npm run test:integration` requires `TEST_DATABASE_URL` pointing to local PostgreSQL. It creates/removes an isolated schema and uses fake email for signup, verification and two-person habit/reward flows; it rejects remote database URLs. See [deployment and phones](docs/DEPLOYMENT_AND_MOBILE_PLAN.md), [authentication](docs/AUTHENTICATION_PLAN.md), [API contract](docs/BACKEND_CONTRACT.md), and [Expo instructions](mobile/README.md).
