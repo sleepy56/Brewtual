@@ -44,16 +44,27 @@ describe('PairsService invite handling', () => {
     expect(tx.membership.count).not.toHaveBeenCalled();
   });
 
-  it('refuses another invite while the pair already has an open invite', async () => {
+  it('replaces an open invite when the inviter changes the partner email', async () => {
     const tx = {
       membership: { count: jest.fn().mockResolvedValue(1) },
-      invite: { findFirst: jest.fn().mockResolvedValue({ id: 'prior' }), create: jest.fn() },
+      invite: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'prior' }),
+        update: jest.fn().mockResolvedValue({}),
+        create: jest.fn().mockResolvedValue({}),
+      },
     };
     const { service } = makeService(tx);
-    await expect(service.createInvite(user, 'two@example.com')).rejects.toBeInstanceOf(
-      ConflictException,
-    );
-    expect(tx.invite.create).not.toHaveBeenCalled();
+    await expect(service.createInvite(user, 'two@example.com')).resolves.toMatchObject({
+      token: expect.any(String),
+      expiresAt: expect.any(Date),
+    });
+    expect(tx.invite.update).toHaveBeenCalledWith({
+      where: { id: 'prior' },
+      data: { expiresAt: expect.any(Date) },
+    });
+    expect(tx.invite.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ email: 'two@example.com' }),
+    }));
   });
 
   it.each([

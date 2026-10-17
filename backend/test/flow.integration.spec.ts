@@ -253,4 +253,38 @@ describe('two-person API flow against PostgreSQL', () => {
       await request(app!.getHttpServer()).get('/api/v1/me').auth(accessToken, { type: 'bearer' }).expect(401);
     } finally { process.env.AUTH_MODE = 'local'; }
   });
+
+  it('runs two verified FAKE-mail signups through pairing, goal approval and reward redemption', async () => {
+    process.env.AUTH_MODE = 'jwt'; process.env.JWT_SECRET = secret;
+    const postAuth = (path: string) => request(app!.getHttpServer()).post(`/api/v1/auth/${path}`);
+    const registered = [0, 1].map(index => ({ email: `full-flow-${randomUUID()}@example.com`, password: `individual test password ${index}` }));
+    // Isolate the two test clients from the earlier signup-rate-limit cases.
+    app!.getHttpAdapter().getInstance().set('trust proxy', 1);
+    try {
+      for (const [index, account] of registered.entries()) {
+        const clientIp = `198.51.100.${index + 1}`;
+        await postAuth('signup').set('x-forwarded-for', clientIp).send({ ...account, client: 'native' }).expect(202);
+        const token = mail.send.mock.lastCall[1] as string; // Fake mail captures the confirmation token; it never sends email.
+        await postAuth('verify/confirm').set('x-forwarded-for', clientIp).send({ ...account, token, client: 'native' }).expect(201, { verified: true });
+      }
+      const logins = await Promise.all(registered.map((account, index) => postAuth('login').set('x-forwarded-for', `198.51.100.${index + 1}`).send({ ...account, client: 'native' }).expect(201)));
+      tokens[0] = logins[0].body.accessToken; tokens[1] = logins[1].body.accessToken;
+      pairId = (await post(0, '/pairs').send({ name: 'Signup flow pair', timezone: 'UTC' }).expect(201)).body.id;
+      inviteToken = (await post(0, '/pairs/invites').send({ email: registered[1].email }).expect(201)).body.token;
+      await post(1, '/pairs/invites/accept').send({ token: inviteToken }).expect(201);
+      const pair = await get(0, '/pairs/current').expect(200);
+      expect(pair.body.members.map((member: { user: { email: string } }) => member.user.email)).toEqual(registered.map(account => account.email));
+
+      const goal = (await post(0, '/goals').send({ title: 'Daily walk', weekdays: [1, 3, 5], requiredCount: 2, weeklyTokens: 3 }).expect(201)).body;
+      await post(1, `/goals/${goal.id}/approve`).expect(201);
+      expect((await get(0, '/goals').expect(200)).body[0].status).toBe('ACTIVE');
+
+      const reward = (await post(0, '/rewards').send({ title: 'Choose a movie', fulfillmentExpectation: 'Plan a movie night together', cost: 2 }).expect(201)).body;
+      await post(1, `/rewards/${reward.id}/approve`).expect(201);
+      await db.ledgerEntry.create({ data: { pairId, userId: logins[1].body.user.id, amount: 2, reason: 'WEEKLY_AWARD', sourceId: randomUUID(), idempotencyKey: `test-credit:${randomUUID()}` } });
+      const redemption = (await post(1, `/rewards/${reward.id}/redeem`).set('Idempotency-Key', 'verified-signup-redemption').expect(201)).body;
+      await post(0, `/rewards/redemptions/${redemption.id}/fulfill`).expect(201);
+      expect((await get(1, '/wallet').expect(200)).body.balance).toBe(0);
+    } finally { process.env.AUTH_MODE = 'local'; }
+  });
 });

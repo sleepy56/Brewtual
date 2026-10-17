@@ -8,7 +8,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web --port 8081",
-    "test": "node --test test/auth.test.cjs",
+    "test": "node --test test/*.test.cjs",
     "typecheck": "tsc --noEmit",
     "export": "expo export --platform web",
     "export:all": "expo export --platform all"

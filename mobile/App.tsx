@@ -3,8 +3,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, BackHandler, KeyboardAvoidingView, Platform, Pressable, View, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { AppText, Avatar, Icon, IconButton, IconName } from './src/components';
-import { DemoProvider, useDemo } from './src/demo';
+import { AppText, Avatar, Button, Icon, IconButton, IconName } from './src/components';
+import { useDemo } from './src/demo';
 import { ThemeProvider, useTheme } from './src/theme';
 import { Route, TabName } from './src/types';
 import TodayScreen from './src/screens/today';
@@ -27,7 +27,7 @@ const screens = { today: TodayScreen, goals: GoalsScreen, rewards: RewardsScreen
 
 function AppShell() {
   const { theme, ready: themeReady, persistenceError: themeSaveError } = useTheme();
-  const { person, pendingCount, ready: demoReady, persistenceError: demoSaveError } = useDemo();
+  const { person, names, mode, pendingCount, ready: demoReady, persistenceError: demoSaveError, busy, error, refresh } = useDemo();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const desktop = Platform.OS === 'web' && width >= 900;
@@ -68,7 +68,7 @@ function AppShell() {
       <AppText variant="eyebrow" color={theme.muted} style={{ marginBottom: 12 }}>YOUR SHARED ROUTINE</AppText>
       {tabs.map(tab => <Pressable key={tab.name} accessibilityRole="button" accessibilityState={{ selected: selectedTab === tab.name }} onPress={() => navigate({ name: tab.name })} style={({ pressed }) => ({ minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, marginBottom: 8, borderRadius: 12, backgroundColor: selectedTab === tab.name || pressed ? theme.accentSoft : 'transparent' })}><Icon name={tab.icon} color={selectedTab === tab.name ? theme.accent : theme.muted} /><AppText>{tab.label}</AppText></Pressable>)}
       <View style={{ flex: 1 }} />
-      <AppText variant="caption" color={theme.muted} style={{ marginBottom: 16 }}>Local demo · Alex & Jamie</AppText>
+      <AppText variant="caption" color={theme.muted} style={{ marginBottom: 16 }}>{mode === 'demo' ? 'Local demo · Alex & Jamie' : `${names.alex} + ${names.jamie}`}</AppText>
       <Pressable accessibilityRole="button" onPress={() => navigate({ name: 'settings' })} style={{ minHeight: 44, flexDirection: 'row', gap: 12, alignItems: 'center' }}><Icon name="settings" /><AppText>Settings</AppText></Pressable>
     </View>}
     <SafeAreaView edges={route.name === 'new-goal' ? ['top', 'left', 'right', 'bottom'] : ['top', 'left', 'right']} style={{ flex: 1, width: '100%', maxWidth: desktop ? 880 : 460, alignSelf: 'stretch', backgroundColor: theme.bg }}>
@@ -77,10 +77,11 @@ function AppShell() {
           : <IconButton name="back" label="Go back" onPress={goBack} />}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
           <IconButton name="bell" label={`Approvals, ${pendingCount} waiting`} badgeCount={pendingCount} onPress={() => navigate({ name: 'approvals' })} />
-          <Pressable onPress={() => navigate({ name: 'settings' })} accessibilityRole="button" accessibilityLabel={`Settings for ${person === 'alex' ? 'Alex' : 'Jamie'}`} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Avatar person={person} /></Pressable>
+          <Pressable onPress={() => navigate({ name: 'settings' })} accessibilityRole="button" accessibilityLabel={`Settings for ${names[person]}`} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Avatar person={person} /></Pressable>
         </View>
       </View>
-      {(themeSaveError || demoSaveError) && <View accessibilityRole="alert" style={{ marginHorizontal: 20, marginBottom: 12, padding: 12, borderRadius: 12, backgroundColor: theme.surface2, borderWidth: 1, borderColor: theme.warning }}><AppText variant="caption" color={theme.warning}>Saving on this device is unavailable. Your changes may not be kept when you reopen the app.</AppText></View>}
+      {(themeSaveError || demoSaveError || error) && <View accessibilityRole="alert" style={{ marginHorizontal: 20, marginBottom: 12, padding: 12, borderRadius: 12, backgroundColor: theme.surface2, borderWidth: 1, borderColor: theme.warning }}><AppText variant="caption" color={theme.warning}>{error || 'Saving on this device is unavailable. Your changes may not be kept when you reopen the app.'}</AppText>{error && refresh ? <Button label="Retry loading" variant="ghost" onPress={() => void refresh().catch(() => {})} /> : null}</View>}
+      {busy ? <ActivityIndicator color={theme.accent} accessibilityLabel="Saving" /> : null}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <CurrentScreen key={`${route.name}:${route.id ?? ''}:${route.goalOwner ?? ''}`} route={route} navigate={navigate} goBack={goBack} />
       </KeyboardAvoidingView>
@@ -99,5 +100,5 @@ function AppShell() {
 }
 
 export default function App() {
-  return <SafeAreaProvider><ThemeProvider><AuthGate><DemoProvider><AppShell /></DemoProvider></AuthGate></ThemeProvider></SafeAreaProvider>;
+  return <SafeAreaProvider><ThemeProvider><AuthGate><AppShell /></AuthGate></ThemeProvider></SafeAreaProvider>;
 }

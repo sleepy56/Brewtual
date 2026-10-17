@@ -30,6 +30,7 @@ export type Reward = {
   offerer: PersonId;
   expectation: string;
   glyph: 'coffee' | 'film' | 'mountain' | 'leaf';
+  status?: 'proposed' | 'active' | 'rejected';
 };
 
 export type LedgerEntry = {
@@ -64,9 +65,20 @@ export type DemoState = {
   requests: RewardRequest[];
 };
 
-type NewGoal = Pick<Goal, 'title' | 'description' | 'owner' | 'type' | 'days' | 'required' | 'tokens' | 'criteria' | 'glyph'>;
+export type NewGoal = Pick<Goal, 'title' | 'description' | 'owner' | 'type' | 'days' | 'required' | 'tokens' | 'criteria' | 'glyph'>;
 
-type DemoContextValue = {
+export type ActionResult = { ok: boolean; message: string; goalId?: string };
+export type AppContextValue = {
+  mode: 'demo' | 'live';
+  today: string;
+  timezone: string;
+  names: Record<PersonId, string>;
+  accountEmail?: string;
+  pairName?: string;
+  busy?: boolean;
+  error?: string;
+  refresh?: () => Promise<void>;
+  signOut?: () => Promise<void>;
   person: PersonId;
   goals: Goal[];
   rewards: Reward[];
@@ -78,13 +90,16 @@ type DemoContextValue = {
   ready: boolean;
   persistenceError: boolean;
   actions: {
-    checkIn: (goalId: string) => { ok: boolean; message: string };
-    undoCheckIn: (goalId: string) => { ok: boolean; message: string };
-    proposeGoal: (input: NewGoal) => { ok: boolean; message: string; goalId?: string };
-    approveGoal: (goalId: string) => { ok: boolean; message: string };
-    rejectGoal: (goalId: string) => { ok: boolean; message: string };
-    requestReward: (rewardId: string, expectedPerson?: PersonId) => { ok: boolean; message: string };
-    fulfillReward: (requestId: string) => { ok: boolean; message: string };
+    checkIn: (goalId: string) => ActionResult | Promise<ActionResult>;
+    undoCheckIn: (goalId: string) => ActionResult | Promise<ActionResult>;
+    proposeGoal: (input: NewGoal) => ActionResult | Promise<ActionResult>;
+    approveGoal: (goalId: string) => ActionResult | Promise<ActionResult>;
+    rejectGoal: (goalId: string) => ActionResult | Promise<ActionResult>;
+    proposeReward: (input: Pick<Reward, 'title' | 'description' | 'cost' | 'expectation'>) => ActionResult | Promise<ActionResult>;
+    approveReward: (id: string) => ActionResult | Promise<ActionResult>;
+    rejectReward: (id: string) => ActionResult | Promise<ActionResult>;
+    requestReward: (rewardId: string, expectedPerson?: PersonId) => ActionResult | Promise<ActionResult>;
+    fulfillReward: (requestId: string) => ActionResult | Promise<ActionResult>;
     switchPerson: (person: PersonId) => void;
     resetDemo: () => void;
   };
@@ -151,7 +166,7 @@ function validState(value: unknown): value is DemoState {
     });
 }
 
-const DemoContext = createContext<DemoContextValue | null>(null);
+export const AppContext = createContext<AppContextValue | null>(null);
 
 export function DemoProvider({ children }: React.PropsWithChildren) {
   const [state, setState] = useState<DemoState>(() => seed());
@@ -188,9 +203,9 @@ export function DemoProvider({ children }: React.PropsWithChildren) {
   }, [persist]);
 
   const balance = state.ledger.filter(entry => entry.member === state.person).reduce((sum, entry) => sum + entry.amount, 0);
-  const pendingCount = state.goals.filter(goal => goal.status === 'proposed' && goal.proposer !== state.person).length;
+  const pendingCount = state.goals.filter(goal => goal.status === 'proposed' && goal.proposer !== state.person).length + state.rewards.filter(reward => reward.status === 'proposed' && reward.offerer !== state.person).length;
 
-  const actions = useMemo<DemoContextValue['actions']>(() => ({
+  const actions = useMemo<AppContextValue['actions']>(() => ({
     checkIn: (goalId) => {
       const current = currentState.current;
       const goal = current.goals.find(item => item.id === goalId);
@@ -237,6 +252,24 @@ export function DemoProvider({ children }: React.PropsWithChildren) {
       mutate(current => ({ ...current, goals: current.goals.map(item => item.id === goalId ? { ...item, status: 'rejected' } : item) }));
       return { ok: true, message: 'Proposal declined. Its history stays here.' };
     },
+    proposeReward: input => {
+      if (!input.title.trim() || !input.expectation.trim() || !Number.isSafeInteger(input.cost) || input.cost < 1) return { ok: false, message: 'Enter a title, fulfillment plan and valid cost.' };
+      const reward: Reward = { id: id('reward'), title: input.title.trim(), description: input.description.trim(), expectation: input.expectation.trim(), cost: input.cost, offerer: currentState.current.person, glyph: 'leaf', status: 'proposed' };
+      mutate(current => ({ ...current, rewards: [reward, ...current.rewards] }));
+      return { ok: true, message: 'Reward sent to your partner for approval.' };
+    },
+    approveReward: rewardId => {
+      const reward = currentState.current.rewards.find(item => item.id === rewardId);
+      if (!reward || reward.status !== 'proposed' || reward.offerer === currentState.current.person) return { ok: false, message: 'This reward is not waiting for your approval.' };
+      mutate(current => ({ ...current, rewards: current.rewards.map(item => item.id === rewardId ? { ...item, status: 'active' } : item) }));
+      return { ok: true, message: 'Reward approved and added to the catalog.' };
+    },
+    rejectReward: rewardId => {
+      const reward = currentState.current.rewards.find(item => item.id === rewardId);
+      if (!reward || reward.status !== 'proposed' || reward.offerer === currentState.current.person) return { ok: false, message: 'This reward is not waiting for your review.' };
+      mutate(current => ({ ...current, rewards: current.rewards.map(item => item.id === rewardId ? { ...item, status: 'rejected' } : item) }));
+      return { ok: true, message: 'Reward declined.' };
+    },
     requestReward: (rewardId, expectedPerson) => {
       const current = currentState.current;
       if (expectedPerson && current.person !== expectedPerson) return { ok: false, message: 'The demo person changed. Review the reward again before spending.' };
@@ -264,7 +297,8 @@ export function DemoProvider({ children }: React.PropsWithChildren) {
     resetDemo: () => mutate(() => seed()),
   }), [mutate]);
 
-  const value = useMemo<DemoContextValue>(() => ({
+  const value = useMemo<AppContextValue>(() => ({
+    mode: 'demo', today: DEMO_DATE, timezone: 'Asia/Calcutta', names: { alex: 'Alex', jamie: 'Jamie' },
     person: state.person,
     goals: state.goals,
     rewards: state.rewards,
@@ -278,11 +312,11 @@ export function DemoProvider({ children }: React.PropsWithChildren) {
     actions,
   }), [state, balance, pendingCount, ready, persistenceError, actions]);
 
-  return React.createElement(DemoContext.Provider, { value }, children);
+  return React.createElement(AppContext.Provider, { value }, children);
 }
 
 export function useDemo() {
-  const context = useContext(DemoContext);
-  if (!context) throw new Error('useDemo must be used inside DemoProvider');
+  const context = useContext(AppContext);
+  if (!context) throw new Error('useDemo must be used inside an app provider');
   return context;
 }

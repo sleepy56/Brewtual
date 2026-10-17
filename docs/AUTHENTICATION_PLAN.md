@@ -1,6 +1,6 @@
 # Authentication and TASK-002 frontend contract
 
-Updated 17 October 2026. The NestJS API implements signup, Gmail email verification, login, refresh and logout. The Expo client currently implements login, refresh and logout. TASK-002 adds signup and verification UI; this task does not change client screens. There is no Supabase, phone login, automatic password recovery or purchased mail domain.
+Updated 17 October 2026. The NestJS API and Expo client implement signup, Gmail email verification, login, refresh and logout. Authenticated members create a timezone-aware pair, invite the exact partner account email, accept an invite token, and use live goal, reward, wallet and activity APIs through the existing themed screens. The separate fictional demo remains available before sign-in. There is no Supabase, phone login, automatic password recovery or purchased mail domain.
 
 ## Registration and verification
 
@@ -37,4 +37,4 @@ The additive migration marks all pre-existing users verified, preserving their p
 - `CORS_ORIGINS`: exact browser origin, such as `http://localhost:8081` locally or this Vercel project's HTTPS origin. No wildcard.
 - `EXPO_PUBLIC_API_URL`: public API base ending in `/api/v1`. The one-project Vercel build sets `/api/v1`; local web can use `http://localhost:3001/api/v1`. Never put backend secrets in `EXPO_PUBLIC_*`.
 
-Password hashes use Node scrypt with N=32768, r=8, p=1, random 16-byte salt, 64-byte output and constant-time verification. Password recovery remains an operator action after independently establishing ownership. Habit, reward and activity screens remain a separate fictional client demo until their API integration task.
+Password hashes use Node scrypt with N=32768, r=8, p=1, random 16-byte salt, 64-byte output and constant-time verification. Password recovery remains an operator action after independently establishing ownership. Authenticated API data is held in memory and is not cached in AsyncStorage. AsyncStorage remains limited to the explicit fictional demo and theme preference. Web uses same-origin `/api/v1`; native builds must set `EXPO_PUBLIC_API_URL` to a reachable API base ending in `/api/v1`.
