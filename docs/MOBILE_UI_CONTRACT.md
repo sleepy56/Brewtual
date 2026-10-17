@@ -1,5 +1,7 @@
 # First mobile UI slice
 
+> **TASK-001 update, 17 October 2026:** Backend signup and email verification now exist. Client screens remain as implemented; TASK-002 uses the [auth API contract](AUTHENTICATION_PLAN.md). Earlier statements below calling verification future work describe the older UI slice.
+
 React Native + Expo application in `mobile/`, using `mobile/pair-habits-preview.html` as the design reference. No embedded WebView. Real authentication calls the API; habit screens remain local demo state. Desktop web uses side navigation at 900px and above. All displayed people/activity are fictional local demo data. Four bottom destinations: Today, Goals, Rewards, Activity. Profile opens Settings; notification badge opens Approvals. New goal/detail/redeem review should work locally.
 
 ## Shared interfaces

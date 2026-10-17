@@ -29,6 +29,14 @@ export function validateEnvironment(env: Record<string, unknown>) {
     if (typeof env.JWT_SECRET !== 'string' || env.JWT_SECRET.length < 32) {
       throw new Error('JWT_SECRET must contain at least 32 characters');
     }
+    if (typeof env.SMTP_USER !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.SMTP_USER) ||
+      typeof env.SMTP_APP_PASSWORD !== 'string' || !env.SMTP_APP_PASSWORD.trim()) {
+      throw new Error('SMTP_USER and SMTP_APP_PASSWORD are required for JWT authentication');
+    }
+    try {
+      const url = new URL(String(env.APP_WEB_URL));
+      if (url.origin !== env.APP_WEB_URL || (nodeEnv === 'production' && url.protocol !== 'https:')) throw new Error();
+    } catch { throw new Error('APP_WEB_URL must be an exact HTTPS origin in production'); }
   }
   const issuer = env.JWT_ISSUER ?? 'pair-habits';
   const audience = env.JWT_AUDIENCE ?? 'pair-habits-api';

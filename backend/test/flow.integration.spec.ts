@@ -2,13 +2,14 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import { execFileSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { SignJWT } from 'jose';
 import request from 'supertest';
 import { Clock } from '../src/domain/clock';
 import { PrismaService } from '../src/database/prisma.service';
 import { setupApp } from '../src/http/setup-app';
 import { hashPassword } from '../src/auth/password';
+import { VerificationMailService } from '../src/auth/verification-mail.service';
 
 describe('two-person API flow against PostgreSQL', () => {
   const secret = 'integration-only-key-with-at-least-32-characters';
@@ -18,6 +19,7 @@ describe('two-person API flow against PostgreSQL', () => {
   let app: INestApplication | undefined;
   let admin: PrismaClient | undefined;
   let db: PrismaService;
+  const mail = { send: jest.fn().mockResolvedValue(undefined) };
   let tokens: string[];
   let goalId: string;
   let rewardId: string;
@@ -49,7 +51,8 @@ describe('two-person API flow against PostgreSQL', () => {
     // Import after setting startup environment: ConfigModule validates at import.
     const { AppModule } = await import('../src/app.module');
     const module = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(Clock).useValue({ now: () => now }).compile();
+      .overrideProvider(Clock).useValue({ now: () => now })
+      .overrideProvider(VerificationMailService).useValue(mail).compile();
     app = module.createNestApplication({ logger: false });
     setupApp(app);
     await app.init();
@@ -185,7 +188,7 @@ describe('two-person API flow against PostgreSQL', () => {
   it('logs in, rotates browser cookies, rejects replay, and revokes access on logout', async () => {
     process.env.AUTH_MODE = 'jwt'; process.env.JWT_SECRET = secret;
     try {
-      await db.user.update({ where: { id: ids[0] }, data: { passwordHash: await hashPassword('individual password for Alice') } });
+      await db.user.update({ where: { id: ids[0] }, data: { passwordHash: await hashPassword('individual password for Alice'), emailVerifiedAt: new Date() } });
       const browserPost = (path: string) => request(app!.getHttpServer()).post(`/api/v1/auth/${path}`).set('Origin', 'http://localhost:3000');
       await browserPost('login').send({ email: emails[0], password: 'wrong', client: 'web' }).expect(401);
       await browserPost('login').send({ email: emails[0], password: 'anything', client: 'web', admin: true }).expect(400);
@@ -202,6 +205,52 @@ describe('two-person API flow against PostgreSQL', () => {
       await browserPost('logout').set('Cookie', nextCookie).send({ client: 'web' }).expect(201);
       await browserPost('refresh').set('Cookie', nextCookie).send({ client: 'web' }).expect(401);
       await request(app!.getHttpServer()).get('/api/v1/me').auth(rotated.body.accessToken, { type: 'bearer' }).expect(401);
+    } finally { process.env.AUTH_MODE = 'local'; }
+  });
+
+  it('verifies signup once, rejects expired tokens and blocks unverified credentials', async () => {
+    process.env.AUTH_MODE = 'jwt'; process.env.JWT_SECRET = secret;
+    const origin = 'http://localhost:3000';
+    const browserPost = (path: string) => request(app!.getHttpServer()).post(`/api/v1/auth/${path}`).set('Origin', origin);
+    const email = `signup-${randomUUID()}@example.com`;
+    const password = 'a unique registration password';
+    try {
+      const signup = await browserPost('signup').send({ email, password, client: 'web' }).expect(202);
+      const token = mail.send.mock.lastCall[1] as string;
+      const pending = await db.pendingSignup.findUniqueOrThrow({ where: { email } });
+      expect(pending.tokenHash).toBe(createHash('sha256').update(token).digest('hex'));
+      await browserPost('verify/confirm').send({ email, token, password: 'wrong registration password', client: 'web' }).expect(400);
+      const confirmations = await Promise.all([
+        browserPost('verify/confirm').send({ email, token, password, client: 'web' }),
+        browserPost('verify/confirm').send({ email, token, password, client: 'web' }),
+      ]);
+      expect(confirmations.map(result => result.status).sort()).toEqual([201, 400]);
+      await browserPost('verify/confirm').send({ email, token, password, client: 'web' }).expect(400);
+      expect(await db.user.findUnique({ where: { email } })).toMatchObject({ email, emailVerifiedAt: expect.any(Date) });
+      await browserPost('signup').send({ email, password: 'attacker chosen password', client: 'web' }).expect(202, signup.body);
+      expect(mail.send).toHaveBeenCalledTimes(1);
+
+      const failedEmail = `mail-failure-${randomUUID()}@example.com`;
+      mail.send.mockRejectedValueOnce(new Error('provider details must stay private'));
+      await browserPost('signup').send({ email: failedEmail, password, client: 'web' }).expect(503);
+      expect(await db.pendingSignup.findUnique({ where: { email: failedEmail } })).toBeNull();
+
+      const expiredEmail = `expired-${randomUUID()}@example.com`;
+      await browserPost('signup').send({ email: expiredEmail, password, client: 'web' }).expect(202);
+      const expiredToken = mail.send.mock.lastCall[1] as string;
+      await db.pendingSignup.update({ where: { email: expiredEmail }, data: { expiresAt: new Date(0) } });
+      await browserPost('verify/confirm').send({ email: expiredEmail, token: expiredToken, password, client: 'web' }).expect(400);
+
+      const unverifiedEmail = `unverified-${randomUUID()}@example.com`;
+      const unverified = await db.user.create({ data: { email: unverifiedEmail, passwordHash: await hashPassword(password) } });
+      const refreshToken = 'a'.repeat(43);
+      const session = await db.authSession.create({ data: { userId: unverified.id, tokenHash: createHash('sha256').update(refreshToken).digest('hex'), expiresAt: new Date(Date.now() + 60000) } });
+      await browserPost('login').send({ email: unverifiedEmail, password, client: 'web' }).expect(401);
+      await request(app!.getHttpServer()).post('/api/v1/auth/refresh').send({ client: 'native', refreshToken }).expect(401);
+      const accessToken = await new SignJWT({ sid: session.id }).setProtectedHeader({ alg: 'HS256' })
+        .setSubject(unverified.id).setIssuer('pair-habits').setAudience('pair-habits-api').setExpirationTime('5m')
+        .sign(new TextEncoder().encode(secret));
+      await request(app!.getHttpServer()).get('/api/v1/me').auth(accessToken, { type: 'bearer' }).expect(401);
     } finally { process.env.AUTH_MODE = 'local'; }
   });
 });

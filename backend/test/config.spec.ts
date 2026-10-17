@@ -1,6 +1,7 @@
 import { validateEnvironment } from '../src/config';
 
 const valid = { DATABASE_URL: 'postgresql://localhost/test', AUTH_MODE: 'local', NODE_ENV: 'test', LOCAL_AUTH_SECRET: 'a'.repeat(32) };
+const mail = { SMTP_USER: 'owner@gmail.com', SMTP_APP_PASSWORD: 'example-only-app-password', APP_WEB_URL: 'https://habits.example.com' };
 describe('startup configuration', () => {
   it('rejects local authentication in production', () => {
     expect(() => validateEnvironment({ ...valid, NODE_ENV: 'production' })).toThrow('forbidden');
@@ -12,7 +13,7 @@ describe('startup configuration', () => {
     expect(() => validateEnvironment({ ...valid, CORS_ORIGINS: '*' })).toThrow('explicit origins');
   });
   it('requires a strong signing key for first-party JWT verification', () => {
-    expect(() => validateEnvironment({ ...valid, AUTH_MODE: 'jwt', JWT_SECRET: 'short' })).toThrow('JWT_SECRET');
+    expect(() => validateEnvironment({ ...valid, ...mail, AUTH_MODE: 'jwt', JWT_SECRET: 'short' })).toThrow('JWT_SECRET');
   });
   it('normalizes the server port', () => {
     expect(validateEnvironment(valid).PORT).toBe(3001);
@@ -30,9 +31,11 @@ describe('startup configuration', () => {
   });
   it('fails closed when production JWT settings are missing', () => {
     expect(() => validateEnvironment({ ...valid, NODE_ENV: 'production', AUTH_MODE: 'jwt', JWT_SECRET: '' })).toThrow('JWT_SECRET');
+    expect(() => validateEnvironment({ ...valid, NODE_ENV: 'production', AUTH_MODE: 'jwt', JWT_SECRET: 'b'.repeat(48) })).toThrow('SMTP_USER');
+    expect(() => validateEnvironment({ ...valid, ...mail, APP_WEB_URL: 'http://habits.example.com', NODE_ENV: 'production', AUTH_MODE: 'jwt', JWT_SECRET: 'b'.repeat(48) })).toThrow('APP_WEB_URL');
   });
   it('accepts configured production JWT auth and rejects the retired provider mode', () => {
-    expect(validateEnvironment({ ...valid, NODE_ENV: 'production', AUTH_MODE: 'jwt', JWT_SECRET: 'b'.repeat(48) }).AUTH_MODE).toBe('jwt');
+    expect(validateEnvironment({ ...valid, ...mail, NODE_ENV: 'production', AUTH_MODE: 'jwt', JWT_SECRET: 'b'.repeat(48) }).AUTH_MODE).toBe('jwt');
     expect(() => validateEnvironment({ ...valid, AUTH_MODE: 'supabase' })).toThrow('AUTH_MODE');
   });
 });

@@ -1,30 +1,40 @@
-# Authentication
+# Authentication and TASK-002 frontend contract
 
-Updated 17 October 2026. App-owned email/password authentication is implemented in the NestJS API and Expo client. No Supabase, public signup, shared PIN, phone login, email delivery or automatic recovery is configured.
+Updated 17 October 2026. The NestJS API implements signup, Gmail email verification, login, refresh and logout. The Expo client currently implements login, refresh and logout. TASK-002 adds signup and verification UI; this task does not change client screens. There is no Supabase, phone login, automatic password recovery or purchased mail domain.
 
-## Accounts and passwords
+## Registration and verification
 
-Provision individual accounts with `npm run auth:provision -- user@example.com`, supplying a unique 15–128 character password over stdin (see the masked PowerShell example in the root README). This creates an account or changes its password and revokes its sessions. Existing user records and pair data are retained by the additive migration. Existing accounts have no password until provisioned. Back up production data before applying migrations.
+All paths below are under `/api/v1`. JSON bodies reject unknown fields. The `client` field is required for registration and verification: `"web"` or `"native"`. Browser requests send the exact `Origin` configured in `CORS_ORIGINS`; native requests may omit it. Both signup and resend return HTTP 202 with the same body, `{ "message": "If this address can be registered, check your email." }`, for existing, pending, and unknown accounts. They never return an account existence flag.
 
-Passwords use Node scrypt, N=32768, r=8, p=1, a random 16-byte salt and 64-byte output, with constant-time verification. Login errors do not distinguish missing accounts from wrong passwords. Login is limited to 5 requests/minute/IP by the installed Nest throttler. Its default storage is in-process: use shared throttling or an edge rate limiter before scaling to multiple API instances/serverless production.
+| Method and path | JSON body | Success | Relevant errors |
+| --- | --- | --- | --- |
+| `POST /auth/signup` | `{email,password,client}` | 202 generic body | 400 invalid body, 429 IP limit, 503 mail unavailable |
+| `POST /auth/verify/resend` | `{email,client}` | 202 generic body | 400 invalid body, 429 IP limit, 503 mail unavailable |
+| `POST /auth/verify/confirm` | `{email,token,password,client}` | 201 `{ "verified": true }` | 400 invalid, expired, replayed or mismatched token/password; 429 IP limit |
+
+`email` is validated and normalized to lowercase, maximum 254 characters. Registration password is 15–128 characters. The token is a 43-character base64url string. The recipient must enter the **same password used at signup** on the confirmation screen. This prevents an attacker who registers someone else's email with an attacker-chosen password from gaining a verified account when the recipient opens the link. If the recipient did not initiate registration or does not know that password, they should ignore the mail and register after the 30-minute pending registration expires. A fresh signup after expiry replaces that pending password; signup never changes an existing `User` or its password.
+
+The email link is `APP_WEB_URL/verify-email#token=<token>&email=<encoded email>`. The fragment stays in the browser and is not sent on GET. TASK-002 should parse it, prompt for the registration password, and call the explicit confirmation POST. Opening or refreshing the link must not consume the token. After success, send the user through the existing login flow; confirmation does not issue a session. Keep the token out of logs and persistent client storage, and remove it from browser history after parsing. The static `/verify-email` route currently serves the Expo app shell; TASK-002 supplies its screen.
+
+Pending registrations store only a SHA-256 token hash and a salted scrypt password hash. Tokens expire after 30 minutes and are consumed with a conditional delete plus account creation in one serializable transaction. A resend rotates the token and invalidates the previous link. Resend has a database-backed 60-second cooldown and a maximum of five sends per pending email per hour; expired pending registrations must restart signup. Signup and resend also have 5 requests/minute/IP via Nest throttling, and confirmation has 10 requests/minute/IP. Nest's IP limiter is in-process, so configure a Vercel Firewall/edge IP limit if public abuse becomes an issue across function instances. The per-email limits remain effective across instances.
+
+If Gmail rejects delivery, the pending token is removed and the API returns a fixed 503 message. Missing SMTP configuration prevents JWT-mode startup. SMTP errors, passwords and raw tokens are never logged. The implementation uses TLS-validated Gmail SMTP on port 465 with a Gmail App Password; `SMTP_USER` is the sender address.
+
+The additive migration marks all pre-existing users verified, preserving their passwords and sessions. New public users are created only after confirmation. `npm run auth:provision` remains an explicit trusted operator command: it can create/verify a user or replace an existing password and revoke sessions. Do not use it as a public signup route.
 
 ## Sessions
 
-`POST /api/v1/auth/login`: `{email,password,client:"web"|"native"}`. Returns `{accessToken,user,expiresIn:900}`; native responses also include `refreshToken`. Access JWTs contain the user ID and session ID, with a 15-minute lifetime. Every protected request checks that both the account and unexpired, unrevoked session exist. Account/session revocation takes effect immediately.
+`POST /auth/login`: `{email,password,client:"web"|"native"}`. Returns `{accessToken,user,expiresIn:900}`; native responses also include `refreshToken`. Login gives the same 401 for missing, wrong-password and unverified accounts. Access JWTs contain the user ID and session ID and last 15 minutes. Every protected JWT request checks the verified account and active session.
 
-`POST /api/v1/auth/refresh`: `{client:"web"}` plus browser cookie, or `{client:"native",refreshToken}`. Refresh tokens are random 32-byte secrets stored only as SHA-256 hashes in PostgreSQL, rotated with a conditional database update so concurrent replay has only one winner. Sessions expire absolutely 30 days after login; rotation does not extend them. Old tokens are rejected. Consumed-token reuse does not revoke the current session automatically.
+`POST /auth/refresh`: `{client:"web"}` plus browser cookie, or `{client:"native",refreshToken}`. Refresh tokens are random 32-byte secrets stored only as SHA-256 hashes in PostgreSQL. Rotation uses a conditional update, so concurrent replay has one winner. Unverified users cannot refresh even if an old session exists. Sessions expire absolutely 30 days after login.
 
-`POST /api/v1/auth/logout`: same credential transport as refresh; revokes the session and clears the browser cookie. Reprovisioning a password revokes all sessions for that account. No background session cleanup is implemented; expired/revoked rows can be periodically removed by an operator.
+`POST /auth/logout`: same credential transport as refresh; revokes the session and clears the browser cookie. Web refresh cookies are HttpOnly, SameSite Strict, Secure in production, and scoped to `/api/v1/auth`. Browser responses never expose refresh tokens to JavaScript. The existing client keeps access tokens in memory and native refresh credentials in Expo SecureStore. Passwords are never persisted.
 
-Web refresh cookies are HttpOnly, SameSite Strict, Secure in production, and scoped to `/api/v1/auth`. Browser responses never expose refresh tokens to JavaScript. Auth POSTs validate the exact allowed Origin, even for native-labelled requests with an Origin header. Native requests can omit Origin but must supply their refresh credential explicitly. Credentialed CORS permits only configured origins. Host web and API on the same HTTPS site; unrelated hosting domains will block Strict cookies.
+## Configuration
 
-The client stores access tokens only in memory and native refresh credentials in Expo SecureStore. It restores sessions at startup, refreshes while open every 14 minutes, and retries `/me` once after a 401. Network failures leave the saved refresh credential available for retry. Logout reports network failures instead of claiming successful server revocation. Passwords are never persisted. API secrets must never appear in `EXPO_PUBLIC_*` variables. Use HTTPS for all non-local builds.
+- `AUTH_MODE=jwt`: requires backend-only `JWT_SECRET` (at least 32 characters), `SMTP_USER`, `SMTP_APP_PASSWORD`, and `APP_WEB_URL` (an exact HTTPS origin in production). Defaults for `JWT_ISSUER` and `JWT_AUDIENCE` are `pair-habits` and `pair-habits-api`.
+- `AUTH_MODE=local`: signed development/test tokens only; forbidden in production. Password login, signup and verification are disabled. Existing local token tooling remains available.
+- `CORS_ORIGINS`: exact browser origin, such as `http://localhost:8081` locally or this Vercel project's HTTPS origin. No wildcard.
+- `EXPO_PUBLIC_API_URL`: public API base ending in `/api/v1`. The one-project Vercel build sets `/api/v1`; local web can use `http://localhost:3001/api/v1`. Never put backend secrets in `EXPO_PUBLIC_*`.
 
-## Runtime configuration
-
-- `AUTH_MODE=jwt`: enables password login and requires backend-only `JWT_SECRET` (strong random value, at least 32 characters), `JWT_ISSUER=pair-habits`, `JWT_AUDIENCE=pair-habits-api`.
-- `AUTH_MODE=local`: signed development/test tokens only, forbidden in production. Password login is disabled. Existing local token tooling remains available.
-- `CORS_ORIGINS`: exact web origin, such as `http://localhost:8081`; no wildcard. Browser auth requires Origin. Native-only deployments may leave this empty.
-- `EXPO_PUBLIC_API_URL`: API URL ending in `/api/v1`; localhost for local web, LAN IP for a development phone, same-site HTTPS API for deployed web.
-
-The auth gate has a real account view and a deliberately separate fictional demo. Pair/goal/reward API screens are still pending. Demo-person switching never grants real account access. Password recovery is currently operator reprovisioning after independently establishing ownership; unverified email/phone cannot establish recovery ownership. Automated recovery, verification, MFA and phone OTP remain later work.
+Password hashes use Node scrypt with N=32768, r=8, p=1, random 16-byte salt, 64-byte output and constant-time verification. Password recovery remains an operator action after independently establishing ownership. Habit, reward and activity screens remain a separate fictional client demo until their API integration task.

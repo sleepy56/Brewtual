@@ -8,5 +8,6 @@ node_modules/
 .expo/
 mobile/.tmp/
 dist/
+/public/
 coverage/
 *.tsbuildinfo
