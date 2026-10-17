@@ -4,7 +4,7 @@ A private app for two adults to agree on habits and earn tokens toward shared re
 
 **Next.js + TypeScript** hosts the website and `/api/v1` API in one Vercel project. **React Native + Expo** remains the Android/iOS client. Both use the same Neon PostgreSQL database through Prisma. There is no NestJS runtime, dependency injection container, or custom Express server.
 
-The website supports signup, email verification, login, pair invitations, habit proposals and approvals, daily check-ins, weekly token awards, reward redemption and fulfillment. Midnight, Dawn, Plum and Ocean themes work on desktop and phone layouts. Expo retains its existing live screens and separate fictional demo.
+The website supports email/password signup, optional email verification, login, pair invitations, habit proposals and approvals, daily check-ins, weekly token awards, reward redemption and fulfillment. Midnight, Dawn, Plum and Ocean themes work on desktop and phone layouts. Expo retains its existing live screens and separate fictional demo.
 
 ## Run locally
 
@@ -12,11 +12,11 @@ Use Node 24.9 or newer within Node 24, and install from the repository root with
 
 1. Run `npm run local:setup` to create a root `.env` from [.env.example](.env.example) with a random signing key, or configure that file yourself. Existing environment files under the old `backend/` directory are preserved but are no longer loaded; move the values you need into the root `.env`. Never commit that file.
 2. Configure `DATABASE_URL` and `DATABASE_URL_UNPOOLED`. For local PostgreSQL, `docker compose up -d` uses the example connection on port 5433. Run `npm run db:generate` and `npm run db:migrate` for a new local database. The Next.js migration does not change the schema or require a new Neon migration if the existing migrations were already applied.
-3. Use `AUTH_MODE=jwt`, a strong `JWT_SECRET`, `APP_WEB_URL=http://localhost:3000` and `CORS_ORIGINS=http://localhost:3000,http://localhost:8081`. SMTP is optional for startup and existing-account login. Public signup and resend require SMTP and return 503 until it is configured; email verification remains mandatory.
+3. Use `AUTH_MODE=jwt`, a strong `JWT_SECRET`, `APP_WEB_URL=http://localhost:3000` and `CORS_ORIGINS=http://localhost:3000,http://localhost:8081`. Signup works immediately without SMTP or verification emails. Leave `REQUIRE_EMAIL_VERIFICATION` unset or `false`; enable it only after configuring email delivery.
 4. Run `npm run dev`, then open `http://localhost:3000`. This starts both web and API. Production checks use `npm run build` followed by `npm start`.
 5. For Expo, set `EXPO_PUBLIC_API_URL` in `mobile/.env` to `http://YOUR-COMPUTER-LAN-IP:3000/api/v1` or the deployed HTTPS API. Run `npm run mobile` separately and restart Expo after environment changes. `npm run mobile:web` is the optional Expo browser preview.
 
-To provision your own trusted account while SMTP is unavailable:
+Use the signup screen to create an account, then sign in. For an operator-managed password reset or trusted account provisioning:
 
 ```powershell
 $accountPassword = Read-Host 'New individual password (15–128 characters)' -MaskInput

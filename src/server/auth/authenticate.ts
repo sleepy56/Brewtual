@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { jwtVerify, JWTPayload } from 'jose';
 import { PrismaService } from '../database/prisma.service';
 import { AuthenticatedUser } from './auth.types';
+import { requiresEmailVerification } from '../config';
 
 const LOCAL_ISSUER = 'group-quests-local';
 const LOCAL_AUDIENCE = 'group-quests-api';
@@ -25,7 +26,7 @@ export class Authenticator {
         throw new UnauthorizedError('Token subject must be a user ID');
       }
       const existingUser = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-      if (!existingUser?.emailVerifiedAt) throw new UnauthorizedError('Account is unavailable');
+      if (!existingUser || (requiresEmailVerification() && !existingUser.emailVerifiedAt)) throw new UnauthorizedError('Account is unavailable');
       if (typeof payload.sid !== 'string' || !UUID_PATTERN.test(payload.sid)) throw new UnauthorizedError('Session required');
       const session = await this.prisma.authSession.findUnique({ where: { id: payload.sid } });
       if (!session || session.userId !== existingUser.id || session.revokedAt || session.expiresAt <= new Date()) {

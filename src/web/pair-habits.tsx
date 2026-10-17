@@ -122,6 +122,7 @@ function Auth({
   startupError: string;
 }) {
   const [mode, setMode] = useState<'login' | 'signup' | 'verify'>(verify ? 'verify' : 'login');
+  const [verificationRequired, setVerificationRequired] = useState(verify);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [token, setToken] = useState('');
@@ -156,11 +157,11 @@ function Auth({
     void run(async () => {
       if (mode === 'login') onLogin(await signIn(email, password));
       else if (mode === 'signup') {
-        await signup(email, password);
+        const result = await signup(email, password);
+        setVerificationRequired(result.verificationRequired);
         setPassword('');
-        setNotice(
-          'If this email can be registered, a verification link is on its way. Open it and confirm with your registration password.',
-        );
+        setMode('login');
+        setNotice(result.message);
       } else {
         await confirm(email, token, password);
         setToken('');
@@ -207,7 +208,7 @@ function Auth({
             {mode === 'verify'
               ? 'Confirm your email with the password you chose when registering.'
               : mode === 'signup'
-                ? 'Create your account, then verify your email before signing in.'
+                ? 'Create your account with an email address and password.'
                 : 'Pick up where you left off.'}
           </p>
           {(error || startupError) && <Notice>{error || startupError}</Notice>}
@@ -277,20 +278,21 @@ function Auth({
               </button>
             </fieldset>
           </form>
-          <button
-            className="text-button"
-            disabled={busy || !email}
-            onClick={() =>
-              void run(async () => {
-                await resend(email);
-                setNotice(
-                  'If verification is available for this email, a new link is on its way. Please allow a minute between requests.',
-                );
-              })
-            }
-          >
-            Resend verification email
-          </button>
+          {verificationRequired && (
+            <button
+              className="text-button"
+              disabled={busy || !email}
+              onClick={() =>
+                void run(async () => {
+                  const result = await resend(email);
+                  setVerificationRequired(result.verificationRequired);
+                  setNotice(result.message);
+                })
+              }
+            >
+              Resend verification email
+            </button>
+          )}
           {mode === 'verify' && (
             <button
               className="text-button"

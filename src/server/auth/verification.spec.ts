@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { hashPassword, verifyPassword } from './password';
 
@@ -14,6 +15,7 @@ describe('Email verification', () => {
 
   beforeEach(() => {
     process.env.AUTH_MODE = 'jwt';
+    process.env.REQUIRE_EMAIL_VERIFICATION = 'true';
     prisma = {
       user: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({}), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       pendingSignup: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({}),
@@ -24,6 +26,32 @@ describe('Email verification', () => {
     auth = new AuthService(prisma, mail as never);
   });
   afterAll(() => { process.env = environment; });
+
+  it('creates an immediately usable account without mail by default and removes stale pending signup', async () => {
+    delete process.env.REQUIRE_EMAIL_VERIFICATION;
+    mail.send.mockRejectedValue(new Error('SMTP is unavailable'));
+    const result = await auth.signup(' ALEX@example.com ', password);
+    expect(result.verificationRequired).toBe(false);
+    const { data } = prisma.user.create.mock.calls[0][0];
+    expect(data.email).toBe(email);
+    expect(data).not.toHaveProperty('emailVerifiedAt');
+    expect(await verifyPassword(password, data.passwordHash)).toBe(true);
+    expect(prisma.pendingSignup.deleteMany).toHaveBeenCalledWith({ where: { email } });
+    await expect(auth.resendVerification(email)).resolves.toEqual(result);
+    expect(prisma.pendingSignup.create).not.toHaveBeenCalled();
+    expect(mail.send).not.toHaveBeenCalled();
+  });
+
+  it('does not overwrite existing accounts or hide database failures when verification is off', async () => {
+    process.env.REQUIRE_EMAIL_VERIFICATION = 'false';
+    const result = await auth.signup(email, password);
+    prisma.user.create.mockRejectedValue(new Prisma.PrismaClientKnownRequestError('duplicate email', { code: 'P2002', clientVersion: 'test' }));
+    await expect(auth.signup(email, 'another long password')).resolves.toEqual(result);
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
+    expect(mail.send).not.toHaveBeenCalled();
+    prisma.user.create.mockRejectedValue(new Error('Database unavailable'));
+    await expect(auth.signup(email, password)).rejects.toThrow('Database unavailable');
+  });
 
   it('does not overwrite an existing account or reveal whether it exists', async () => {
     prisma.user.findUnique.mockResolvedValue({ email, emailVerifiedAt: new Date() });

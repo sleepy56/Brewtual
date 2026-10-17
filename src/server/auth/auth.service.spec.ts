@@ -14,6 +14,7 @@ describe('Password authentication', () => {
   beforeAll(async () => { user.passwordHash = await hashPassword('a unique and long password'); });
   beforeEach(() => {
     process.env.AUTH_MODE = 'jwt'; process.env.JWT_SECRET = secret;
+    process.env.REQUIRE_EMAIL_VERIFICATION = 'true';
     process.env.JWT_ISSUER = 'pair-habits'; process.env.JWT_AUDIENCE = 'pair-habits-api';
     prisma = { user: { findUnique: jest.fn().mockResolvedValue(user) }, authSession: {
       create: jest.fn().mockImplementation(async ({ data }) => ({ id: user.id, ...data })),
@@ -55,6 +56,18 @@ describe('Password authentication', () => {
     await expect(auth.refresh('a'.repeat(43))).rejects.toThrow('Session expired');
     expect(prisma.authSession.create).not.toHaveBeenCalled();
     expect(prisma.authSession.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('allows login and refresh without verification by default while preserving password checks', async () => {
+    delete process.env.REQUIRE_EMAIL_VERIFICATION;
+    const unverified = { ...user, emailVerifiedAt: null };
+    prisma.user.findUnique.mockResolvedValue(unverified);
+    await expect(auth.login(user.email, 'wrong password')).rejects.toThrow('Email or password is incorrect');
+    const login = await auth.login(user.email, 'a unique and long password');
+    expect(login.user.id).toBe(user.id);
+    prisma.authSession.findUnique.mockResolvedValue({ id: user.id, userId: user.id, user: unverified, revokedAt: null, expiresAt: new Date(Date.now() + 60000) });
+    await expect(auth.refresh(login.refreshToken)).resolves.toHaveProperty('accessToken');
+    expect(prisma.authSession.updateMany.mock.calls[0][0].where).not.toHaveProperty('user');
   });
 
   it('does not enable password login in local token mode', async () => {

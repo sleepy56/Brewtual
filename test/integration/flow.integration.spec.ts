@@ -43,6 +43,7 @@ describe('two-person API flow against PostgreSQL', () => {
     process.env.DATABASE_URL_UNPOOLED = scoped.toString();
     process.env.NODE_ENV = 'test';
     process.env.AUTH_MODE = 'local';
+    delete process.env.REQUIRE_EMAIL_VERIFICATION;
     process.env.LOCAL_AUTH_SECRET = secret;
     process.env.CORS_ORIGINS = 'http://localhost:3000';
     execFileSync(process.execPath, [require.resolve('prisma/build/index.js'), 'migrate', 'deploy'], { env: process.env, stdio: 'pipe', timeout: 30000 });
@@ -216,6 +217,7 @@ describe('two-person API flow against PostgreSQL', () => {
 
   it('verifies signup once, rejects expired tokens and blocks unverified credentials', async () => {
     process.env.AUTH_MODE = 'jwt'; process.env.JWT_SECRET = secret;
+    process.env.REQUIRE_EMAIL_VERIFICATION = 'true';
     const origin = 'http://localhost:3000';
     const browserPost = (path: string) => request(server).post(`/api/v1/auth/${path}`).set('Origin', origin);
     const email = `signup-${randomUUID()}@example.com`;
@@ -257,22 +259,35 @@ describe('two-person API flow against PostgreSQL', () => {
         .setSubject(unverified.id).setIssuer('pair-habits').setAudience('pair-habits-api').setExpirationTime('5m')
         .sign(new TextEncoder().encode(secret));
       await request(server).get('/api/v1/me').auth(accessToken, { type: 'bearer' }).expect(401);
-    } finally { process.env.AUTH_MODE = 'local'; }
+    } finally { process.env.AUTH_MODE = 'local'; delete process.env.REQUIRE_EMAIL_VERIFICATION; }
   });
 
-  it('runs two verified FAKE-mail signups through pairing, goal approval and reward redemption', async () => {
+  it('runs signup, web/native sessions and live pair/habit/reward APIs without email verification or sending mail', async () => {
     process.env.AUTH_MODE = 'jwt'; process.env.JWT_SECRET = secret;
-    const postAuth = (path: string) => request(server).post(`/api/v1/auth/${path}`);
+    const postAuth = (path: string) => request(server).post(`/api/v1/auth/${path}`).set('Origin', 'http://localhost:3000');
     const registered = [0, 1].map(index => ({ email: `full-flow-${randomUUID()}@example.com`, password: `individual test password ${index}` }));
+    mail.send.mockClear();
     // Isolate the two test clients from the earlier signup-rate-limit cases.
     try {
       for (const [index, account] of registered.entries()) {
         const clientIp = `198.51.100.${index + 1}`;
-        await postAuth('signup').set('x-forwarded-for', clientIp).send({ ...account, client: 'native' }).expect(202);
-        const token = mail.send.mock.lastCall[1] as string; // Fake mail captures the confirmation token; it never sends email.
-        await postAuth('verify/confirm').set('x-forwarded-for', clientIp).send({ ...account, token, client: 'native' }).expect(201, { verified: true });
+        const signup = await postAuth('signup').set('x-forwarded-for', clientIp).send({ ...account, email: account.email.toUpperCase(), client: index ? 'native' : 'web' }).expect(202);
+        expect(signup.body.verificationRequired).toBe(false);
+        const user = await db.user.findUniqueOrThrow({ where: { email: account.email } });
+        expect(user.emailVerifiedAt).toBeNull();
+        expect(await db.pendingSignup.findUnique({ where: { email: account.email } })).toBeNull();
+        await postAuth('signup').set('x-forwarded-for', clientIp).send({ ...account, password: 'attacker chosen different password', client: 'native' }).expect(202, signup.body);
+        expect((await db.user.findUniqueOrThrow({ where: { email: account.email } })).passwordHash).toBe(user.passwordHash);
       }
-      const logins = await Promise.all(registered.map((account, index) => postAuth('login').set('x-forwarded-for', `198.51.100.${index + 1}`).send({ ...account, client: 'native' }).expect(201)));
+      await postAuth('verify/resend').send({ email: registered[0].email, client: 'web' }).expect(202);
+      expect(mail.send).not.toHaveBeenCalled();
+      const logins = await Promise.all(registered.map((account, index) => postAuth('login').set('x-forwarded-for', `198.51.100.${index + 1}`).send({ ...account, client: index ? 'native' : 'web' }).expect(201)));
+      expect(logins[0].body).not.toHaveProperty('refreshToken');
+      const cookie = logins[0].headers['set-cookie'][0].split(';')[0];
+      const webRefresh = await postAuth('refresh').set('Cookie', cookie).send({ client: 'web' }).expect(201);
+      const nativeRefresh = await postAuth('refresh').send({ client: 'native', refreshToken: logins[1].body.refreshToken }).expect(201);
+      await postAuth('refresh').send({ client: 'native', refreshToken: logins[1].body.refreshToken }).expect(401);
+      logins[0].body.accessToken = webRefresh.body.accessToken; logins[1].body.accessToken = nativeRefresh.body.accessToken;
       tokens[0] = logins[0].body.accessToken; tokens[1] = logins[1].body.accessToken;
       pairId = (await post(0, '/pairs').send({ name: 'Signup flow pair', timezone: 'UTC' }).expect(201)).body.id;
       inviteToken = (await post(0, '/pairs/invites').send({ email: registered[1].email }).expect(201)).body.token;
@@ -287,7 +302,7 @@ describe('two-person API flow against PostgreSQL', () => {
       const reward = (await post(0, '/rewards').send({ title: 'Choose a movie', fulfillmentExpectation: 'Plan a movie night together', cost: 2 }).expect(201)).body;
       await post(1, `/rewards/${reward.id}/approve`).expect(201);
       await db.ledgerEntry.create({ data: { pairId, userId: logins[1].body.user.id, amount: 2, reason: 'WEEKLY_AWARD', sourceId: randomUUID(), idempotencyKey: `test-credit:${randomUUID()}` } });
-      const redemption = (await post(1, `/rewards/${reward.id}/redeem`).set('Idempotency-Key', 'verified-signup-redemption').expect(201)).body;
+      const redemption = (await post(1, `/rewards/${reward.id}/redeem`).set('Idempotency-Key', 'signup-redemption').expect(201)).body;
       await post(0, `/rewards/redemptions/${redemption.id}/fulfill`).expect(201);
       expect((await get(1, '/wallet').expect(200)).body.balance).toBe(0);
     } finally { process.env.AUTH_MODE = 'local'; }

@@ -45,6 +45,7 @@ test(
           APP_WEB_URL: 'https://smoke.example.com',
           CORS_ORIGINS: 'https://smoke.example.com',
           SMTP_HOST: '',
+          REQUIRE_EMAIL_VERIFICATION: 'false',
           SMTP_USER: '',
           SMTP_PASSWORD: '',
           SMTP_FROM: '',

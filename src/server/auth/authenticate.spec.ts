@@ -10,6 +10,7 @@ describe('Bearer authentication', () => {
   let identity: Authenticator;
   beforeEach(() => {
     process.env.AUTH_MODE = 'local';
+    process.env.REQUIRE_EMAIL_VERIFICATION = 'true';
     process.env.NODE_ENV = 'test';
     process.env.LOCAL_AUTH_SECRET = secret;
     db = {
@@ -102,5 +103,11 @@ describe('Bearer authentication', () => {
     await expect(identity.authenticate(`Bearer ${jwt}`)).rejects.toThrow('Account is unavailable');
     db.user.findUnique.mockResolvedValue({ id: subject, emailVerifiedAt: null });
     await expect(identity.authenticate(`Bearer ${jwt}`)).rejects.toThrow('Account is unavailable');
+    delete process.env.REQUIRE_EMAIL_VERIFICATION;
+    db.user.findUnique.mockResolvedValue({ id: subject, email: 'registered@example.com', emailVerifiedAt: null });
+    db.authSession.findUnique.mockResolvedValue({ userId: subject, revokedAt: null, expiresAt: new Date(Date.now() + 60000) });
+    await expect(identity.authenticate(`Bearer ${jwt}`)).resolves.toEqual({ id: subject, email: 'registered@example.com' });
+    db.authSession.findUnique.mockResolvedValue(null);
+    await expect(identity.authenticate(`Bearer ${jwt}`)).rejects.toThrow('Session expired');
   });
 });

@@ -1,3 +1,7 @@
+export function requiresEmailVerification() {
+  return process.env.REQUIRE_EMAIL_VERIFICATION === 'true';
+}
+
 export function validateEnvironment(env: Record<string, unknown>) {
   const nodeEnv = env.NODE_ENV ?? 'development';
   const mode = env.AUTH_MODE ?? (nodeEnv === 'production' ? 'jwt' : 'local');
@@ -6,6 +10,9 @@ export function validateEnvironment(env: Record<string, unknown>) {
   }
   if (!['local', 'jwt'].includes(String(mode))) {
     throw new Error('AUTH_MODE must be local or jwt');
+  }
+  if (env.REQUIRE_EMAIL_VERIFICATION !== undefined && !['true', 'false'].includes(String(env.REQUIRE_EMAIL_VERIFICATION))) {
+    throw new Error('REQUIRE_EMAIL_VERIFICATION must be true or false');
   }
   if (typeof env.DATABASE_URL !== 'string' || !/^postgres(ql)?:\/\//.test(env.DATABASE_URL)) {
     throw new Error('DATABASE_URL must be a PostgreSQL connection URL');

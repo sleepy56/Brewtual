@@ -5,13 +5,15 @@ import { SignJWT } from 'jose';
 import { PrismaService } from '../database/prisma.service';
 import { hashPassword, verifyPassword } from './password';
 import { VerificationMailService } from './verification-mail.service';
+import { requiresEmailVerification } from '../config';
 
 const digest = (token: string) => createHash('sha256').update(token).digest('hex');
 const REFRESH_MS = 30 * 24 * 60 * 60 * 1000;
 const VERIFY_MS = 30 * 60 * 1000;
 const COOLDOWN_MS = 60 * 1000;
 const WINDOW_MS = 60 * 60 * 1000;
-const GENERIC = { message: 'If this address can be registered, check your email.' };
+const GENERIC = { message: 'If this address can be registered, check your email.', verificationRequired: true };
+const SIGN_IN = { message: 'You can sign in with your email and password.', verificationRequired: false };
 
 export class AuthService {
   // Unknown accounts still pay the password derivation cost.
@@ -33,10 +35,25 @@ export class AuthService {
   }
 
   async signup(email: string, password: string) {
-    return this.issueVerification(email, password);
+    if (requiresEmailVerification()) return this.issueVerification(email, password);
+    this.ensureJwtMode();
+    email = email.trim().toLowerCase();
+    const passwordHash = await hashPassword(password);
+    try {
+      await this.prisma.runInTransaction(async tx => {
+        await tx.user.create({ data: { email, passwordHash } });
+        await tx.pendingSignup.deleteMany({ where: { email } });
+      });
+    } catch (error) {
+      // Re-registering must never replace another account's password.
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) throw error;
+    }
+    return SIGN_IN;
   }
 
   async resendVerification(email: string) {
+    this.ensureJwtMode();
+    if (!requiresEmailVerification()) return SIGN_IN;
     return this.issueVerification(email);
   }
 
@@ -124,7 +141,7 @@ export class AuthService {
     this.ensureJwtMode();
     const user = await this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
     const valid = await verifyPassword(password, user?.passwordHash ?? await this.dummyHash);
-    if (!user?.passwordHash || !valid || !user.emailVerifiedAt) throw new UnauthorizedError('Email or password is incorrect');
+    if (!user?.passwordHash || !valid || (requiresEmailVerification() && !user.emailVerifiedAt)) throw new UnauthorizedError('Email or password is incorrect');
     const refreshToken = randomBytes(32).toString('base64url');
     const session = await this.prisma.authSession.create({ data: {
       userId: user.id, tokenHash: digest(refreshToken), expiresAt: new Date(Date.now() + REFRESH_MS),
@@ -136,11 +153,12 @@ export class AuthService {
     this.ensureJwtMode();
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new UnauthorizedError('Session expired. Please sign in again');
     const session = await this.prisma.authSession.findUnique({ where: { tokenHash: digest(token) }, include: { user: true } });
-    if (!session || !session.user?.emailVerifiedAt || session.revokedAt || session.expiresAt <= new Date()) throw new UnauthorizedError('Session expired. Please sign in again');
+    const verificationRequired = requiresEmailVerification();
+    if (!session?.user || (verificationRequired && !session.user.emailVerifiedAt) || session.revokedAt || session.expiresAt <= new Date()) throw new UnauthorizedError('Session expired. Please sign in again');
     const refreshToken = randomBytes(32).toString('base64url');
     // Conditional rotation permits only one winner, even across API instances.
     const rotated = await this.prisma.authSession.updateMany({
-      where: { id: session.id, tokenHash: digest(token), revokedAt: null, expiresAt: { gt: new Date() }, user: { emailVerifiedAt: { not: null } } },
+      where: { id: session.id, tokenHash: digest(token), revokedAt: null, expiresAt: { gt: new Date() }, ...(verificationRequired ? { user: { emailVerifiedAt: { not: null } } } : {}) },
       data: { tokenHash: digest(refreshToken) },
     });
     if (rotated.count !== 1) throw new UnauthorizedError('Session expired. Please sign in again');

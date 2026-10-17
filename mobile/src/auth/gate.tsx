@@ -17,6 +17,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [password, setPassword] = useState('');
   const [visible, setVisible] = useState(false);
   const [mode, setMode] = useState<'login' | 'signup' | 'verify' | 'resend'>('login');
+  const [verificationRequired, setVerificationRequired] = useState(false);
   const [token, setToken] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -27,6 +28,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     if (Platform.OS === 'web' && window.location.pathname === '/verify-email') {
       const fragment = new URLSearchParams(window.location.hash.slice(1));
       setToken(fragment.get('token') ?? ''); setEmail(fragment.get('email') ?? ''); setMode('verify');
+      setVerificationRequired(true);
       window.history.replaceState(null, '', '/verify-email');
     }
     let active = true;
@@ -88,15 +90,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
             {mode === 'verify' && !token ? <TextInput accessibilityLabel="Verification token" value={token} onChangeText={setToken} autoCapitalize="none" placeholder="Verification token" placeholderTextColor={theme.muted} style={inputStyle} /> : null}
             <Button label={busy ? 'Please wait…' : mode === 'signup' ? 'Create account' : mode === 'verify' ? 'Verify email' : mode === 'resend' ? 'Resend verification' : 'Sign in'} disabled={busy || !email.trim() || (mode !== 'resend' && !password) || (mode === 'verify' && !token)} onPress={() => void run(async () => {
               if (mode === 'login') { setAccount(await signIn(email, password)); setPassword(''); }
-              if (mode === 'signup') { await signup(email, password); setPassword(''); setMode('resend'); setMessage('If this address can be registered, check your email.'); }
-              if (mode === 'resend') { await resendVerification(email); setMessage('If this address can be registered, check your email.'); }
+              if (mode === 'signup') { const result = await signup(email, password); setVerificationRequired(result.verificationRequired); setPassword(''); setMode(result.verificationRequired ? 'resend' : 'login'); setMessage(result.message); }
+              if (mode === 'resend') { const result = await resendVerification(email); setVerificationRequired(result.verificationRequired); if (!result.verificationRequired) setMode('login'); setMessage(result.message); }
               if (mode === 'verify') { await confirmVerification(email, token, password); setToken(''); setPassword(''); setMode('login'); setMessage('Email verified. Sign in to continue.'); }
             })} />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 }}>
               {mode !== 'login' ? <Button label="Sign in" variant="ghost" disabled={busy} onPress={() => { setMode('login'); setPassword(''); setError(''); }} /> : null}
               {mode !== 'signup' ? <Button label="Create account" variant="ghost" disabled={busy} onPress={() => { setMode('signup'); setPassword(''); setError(''); }} /> : null}
-              {mode !== 'resend' ? <Button label="Resend email" variant="ghost" disabled={busy} onPress={() => { setMode('resend'); setPassword(''); setError(''); }} /> : null}
-              {mode !== 'verify' ? <Button label="Enter verification token" variant="ghost" disabled={busy} onPress={() => { setMode('verify'); setPassword(''); setError(''); }} /> : null}
+              {verificationRequired && mode !== 'resend' ? <Button label="Resend email" variant="ghost" disabled={busy} onPress={() => { setMode('resend'); setPassword(''); setError(''); }} /> : null}
+              {verificationRequired && mode !== 'verify' ? <Button label="Enter verification token" variant="ghost" disabled={busy} onPress={() => { setMode('verify'); setPassword(''); setError(''); }} /> : null}
             </View>
           </Card>
           <Button label="Explore the fictional demo" variant="ghost" disabled={busy} onPress={() => { setPassword(''); setError(''); setDemo(true); }} />

@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 export type Account = { id: string; email: string };
+type SignupResult = { message: string; verificationRequired: boolean };
 type Session = { accessToken: string; user: Account };
 const native = Platform.OS !== 'web';
 const KEY = 'pair-habits-refresh';
@@ -27,8 +28,8 @@ async function request(path: string, body: object) {
   return response.json();
 }
 
-export const signup = (email: string, password: string) => request('signup', { email: email.trim().toLowerCase(), password, client: native ? 'native' : 'web' });
-export const resendVerification = (email: string) => request('verify/resend', { email: email.trim().toLowerCase(), client: native ? 'native' : 'web' });
+export const signup = (email: string, password: string): Promise<SignupResult> => request('signup', { email: email.trim().toLowerCase(), password, client: native ? 'native' : 'web' });
+export const resendVerification = (email: string): Promise<SignupResult> => request('verify/resend', { email: email.trim().toLowerCase(), client: native ? 'native' : 'web' });
 export const confirmVerification = (email: string, token: string, password: string) => request('verify/confirm', { email: email.trim().toLowerCase(), token, password, client: native ? 'native' : 'web' });
 
 export async function apiRequest<T>(path: string, method = 'GET', body?: object, key?: string): Promise<T> {

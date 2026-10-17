@@ -1,4 +1,5 @@
 export type Account = { id: string; email: string };
+type SignupResult = { message: string; verificationRequired: boolean };
 type Session = { accessToken: string; user: Account };
 let accessToken: string | null = null;
 let pendingRefresh: Promise<Account> | null = null;
@@ -85,9 +86,9 @@ export async function signOut() {
   }
 }
 export const signup = (email: string, password: string) =>
-  send('/auth/signup', 'POST', { email: email.trim().toLowerCase(), password, client: 'web' });
+  send<SignupResult>('/auth/signup', 'POST', { email: email.trim().toLowerCase(), password, client: 'web' });
 export const resend = (email: string) =>
-  send('/auth/verify/resend', 'POST', { email: email.trim().toLowerCase(), client: 'web' });
+  send<SignupResult>('/auth/verify/resend', 'POST', { email: email.trim().toLowerCase(), client: 'web' });
 export const confirm = (email: string, token: string, password: string) =>
   send('/auth/verify/confirm', 'POST', {
     email: email.trim().toLowerCase(),

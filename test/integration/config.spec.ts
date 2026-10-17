@@ -3,6 +3,11 @@ import { validateEnvironment } from '../../src/server/config';
 const valid = { DATABASE_URL: 'postgresql://localhost/test', AUTH_MODE: 'local', NODE_ENV: 'test', LOCAL_AUTH_SECRET: 'a'.repeat(32) };
 const mail = { SMTP_HOST: 'smtp.resend.com', SMTP_PORT: '465', SMTP_USER: 'resend', SMTP_PASSWORD: 'example-only-api-key', SMTP_FROM: 'verify@habits.example.com', APP_WEB_URL: 'https://habits.example.com' };
 describe('startup configuration', () => {
+  it('accepts optional verification settings and rejects typos', () => {
+    expect(() => validateEnvironment({ ...valid, REQUIRE_EMAIL_VERIFICATION: 'false' })).not.toThrow();
+    expect(() => validateEnvironment({ ...valid, REQUIRE_EMAIL_VERIFICATION: 'true' })).not.toThrow();
+    expect(() => validateEnvironment({ ...valid, REQUIRE_EMAIL_VERIFICATION: 'yes' })).toThrow('REQUIRE_EMAIL_VERIFICATION');
+  });
   it('rejects local authentication in production', () => {
     expect(() => validateEnvironment({ ...valid, NODE_ENV: 'production' })).toThrow('forbidden');
   });

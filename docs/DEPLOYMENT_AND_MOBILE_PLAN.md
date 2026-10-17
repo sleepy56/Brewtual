@@ -32,8 +32,9 @@ Set these in Vercel Environment Variables for Production. Keep secrets out of `N
 | `CORS_ORIGINS` | Same exact browser origin; comma-separated if more than one is intentionally allowed |
 | `DB_TRANSACTION_MAX_WAIT_MS` | `10000`, or omit for this default |
 | `DB_TRANSACTION_TIMEOUT_MS` | `30000`, or omit for this default |
+| `REQUIRE_EMAIL_VERIFICATION` | `false`, or omit; signup works without email |
 
-SMTP is optional for deployment and existing verified accounts. To enable public signup/resend, add `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`. For Resend SMTP, use `smtp.resend.com`, port `465`, username `resend`, the API key as the password and a verified-domain sender. No SMTP means signup/resend return 503; verification is never bypassed. [Authentication details](AUTHENTICATION_PLAN.md).
+SMTP is optional for signup and login. With `REQUIRE_EMAIL_VERIFICATION` unset or `false`, accounts are created immediately and no email is sent, even if SMTP variables exist. Once email delivery is ready, configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`, then set `REQUIRE_EMAIL_VERIFICATION=true` and redeploy. Unverified accounts will then need to confirm their email before using the app. [Authentication details](AUTHENTICATION_PLAN.md).
 
 Keep `AUTH_MODE=local`, `LOCAL_AUTH_SECRET` and `TEST_DATABASE_URL` out of production. Next.js manages `NODE_ENV` and `PORT`. Existing production migrations need not be rerun for this change; new databases use `npm run db:migrate` with the direct URL. Builds only generate the Prisma client and Next.js output.
 
@@ -45,7 +46,7 @@ For preview signup tests, use preview-specific `APP_WEB_URL` and `CORS_ORIGINS`.
 2. Open `/verify-email`: the verification page should load without consuming a token on GET.
 3. Open `/api/v1/health`: expect 200 and `{"status":"ok"}`.
 4. Open `/api/v1/health/ready`: expect 200 and `{"status":"ready"}`. A 503 here indicates configuration or database connectivity trouble; it should not crash the website.
-5. Sign in with an existing verified account, or configure SMTP and create/verify a new account. Test pair access and one habit mutation.
+5. Create an account with an email and password, then sign in immediately. Test pair access and one habit mutation. Verification is required only if explicitly enabled.
 
 Local `npm run test:vercel` builds and starts the production server with `require(esm)` disabled, checks the pages and API, and verifies the website survives an unavailable database. `npm run test:integration` covers real local PostgreSQL transactions using isolated schemas and fake email. Neither check touches Neon or sends email.
 
