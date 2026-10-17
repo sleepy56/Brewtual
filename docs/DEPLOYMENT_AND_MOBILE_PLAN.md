@@ -9,7 +9,7 @@ The repository keeps the NestJS API in `backend/` and Expo in `mobile/`. One Ver
 | Repository Root Directory | Repository root, not `backend` or `mobile` |
 | Framework Preset | Express |
 | Node.js Version | 24 |
-| Install Command | `npm ci` (root workspace lockfile) |
+| Install Command | `npm ci --include=dev` (root workspace lockfile; backend TypeScript and Expo build tools are required during build) |
 | Build Command | `npm run build:vercel` |
 | Output Directory | `public` |
 | Function region | `sin1` |
