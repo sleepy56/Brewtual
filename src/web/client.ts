@@ -29,7 +29,7 @@ async function send<T>(path: string, method = 'GET', data?: object, key?: string
       ...(data ? { body: JSON.stringify(data) } : {}),
     });
   } catch {
-    throw new ApiError('Cannot reach Pair Habits. Check your connection and try again.');
+    throw new ApiError('Cannot reach brewtual. Check your connection and try again.');
   }
   let result: unknown;
   try {

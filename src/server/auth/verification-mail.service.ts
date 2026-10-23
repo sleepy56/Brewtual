@@ -21,7 +21,7 @@ export class VerificationMailService {
       connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 15000,
     });
     try {
-      await transport.sendMail({ from: sender, to: email, subject: 'Verify your Pair Habits email',
+      await transport.sendMail({ from: sender, to: email, subject: 'Verify your brewtual email',
         text: `Open this link to verify your email, then enter your registration/account password:\n${link.toString()}\n\nThe link expires in 30 minutes.`,
       });
     } catch {

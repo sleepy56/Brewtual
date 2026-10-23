@@ -12,12 +12,16 @@ import {
   signOut,
   signup,
 } from './client';
+import { BrewtualMark } from './brewtual-mark';
+import { Landing } from './landing';
+import { Connections } from './connections';
+import { InstallApp } from './install-app';
 import type { Goal, Ledger, Pair, Redemption, Reward } from './types';
 import { addLocalDays, localDate, localWeekday, weekStart } from '../server/domain/calendar';
 
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const themes = ['midnight', 'dawn', 'plum', 'ocean'];
-type Tab = 'today' | 'goals' | 'rewards' | 'activity' | 'settings';
+type Tab = 'today' | 'goals' | 'rewards' | 'activity' | 'settings' | 'together';
 const message = (error: unknown) =>
   error instanceof Error ? error.message : 'Something went wrong. Please try again.';
 const initials = (email: string) => email.slice(0, 2).toUpperCase();
@@ -40,7 +44,8 @@ function Notice({ children, kind = 'error' }: { children: ReactNode; kind?: 'err
 
 export default function PairHabits({ verify = false }: { verify?: boolean }) {
   const [account, setAccount] = useState<Account | null>(null);
-  const [ready, setReady] = useState(verify);
+  const [showAuth, setShowAuth] = useState(verify);
+  const [ready, setReady] = useState(true);
   const [error, setError] = useState('');
   const [theme, setTheme] = useState('midnight');
   useEffect(() => {
@@ -86,6 +91,7 @@ export default function PairHabits({ verify = false }: { verify?: boolean }) {
   }
   return (
     <div className="app" data-theme={theme}>
+      <InstallApp />
       {!ready ? (
         <main className="center-page">
           <p role="status">Opening your shared space…</p>
@@ -98,15 +104,17 @@ export default function PairHabits({ verify = false }: { verify?: boolean }) {
           theme={theme}
           setTheme={changeTheme}
         />
+      ) : !showAuth ? (
+        <Landing enter={() => setShowAuth(true)} theme={theme} setTheme={changeTheme} />
       ) : (
-        <Auth
+        <><button className="back-home text-button" onClick={() => setShowAuth(false)}>← Back to the beginning</button><Auth
           verify={verify}
           onLogin={(user) => {
             setAccount(user);
             setError('');
           }}
           startupError={error}
-        />
+        /></>
       )}
     </div>
   );
@@ -175,7 +183,7 @@ function Auth({
     <main className="auth-layout">
       <section className="auth-story">
         <a href="/" className="brand">
-          ❧ <span>pair habits.</span>
+          <BrewtualMark /> <span>brewtual</span>
         </a>
         <div>
           <p className="eyebrow">LITTLE ROUTINES. SHARED JOY.</p>
@@ -189,7 +197,7 @@ function Auth({
             <br />A shared space for the life you’re building.
           </p>
           <div className="story-art" aria-hidden="true">
-            ❧<span>one small step, together.</span>
+            <BrewtualMark /><span>one small step, together.</span>
           </div>
         </div>
         <p className="muted small">Your routines, your pace, your person.</p>
@@ -305,9 +313,9 @@ function Auth({
             </button>
           )}
           <p className="small muted auth-note">
-            Your partner joins with their own account.
+            Your people join with their own accounts.
             <br />
-            You’ll connect your shared space after signing in.
+            Connect with a partner or friend circle after signing in.
           </p>
         </div>
       </section>
@@ -443,6 +451,7 @@ function Workspace({
     { id: 'today', icon: '⌂', title: 'Today' },
     { id: 'goals', icon: '◎', title: 'Goals' },
     { id: 'rewards', icon: '♧', title: 'Rewards' },
+    { id: 'together', icon: '♧', title: 'Together' },
     { id: 'activity', icon: '↗', title: 'Activity' },
     { id: 'settings', icon: '⚙', title: 'Settings' },
   ];
@@ -461,7 +470,7 @@ function Workspace({
     <div className="workspace">
       <aside className="sidebar">
         <a href="/" className="brand">
-          ❧ <span>pair habits.</span>
+          <BrewtualMark /> <span>brewtual</span>
         </a>
         <p className="eyebrow">YOUR SHARED ROUTINE</p>
         <nav aria-label="Main navigation">
@@ -488,9 +497,10 @@ function Workspace({
       <div className="main-column">
         <header className="topbar">
           <a href="/" className="brand">
-            ❧ <span>pair habits.</span>
+            <BrewtualMark /> <span>brewtual</span>
           </a>
           <div className="row">
+            <button className="subtle quick-invite" onClick={() => setTab('together')}>＋ Invite / Join</button>
             <span className="token-pill">✧ {balance} tokens</span>
             <button
               className="avatar"
@@ -515,7 +525,7 @@ function Workspace({
             </Notice>
           )}
           {notice && <Notice kind="success">{notice}</Notice>}
-          {!loaded ? (
+          {tab === 'together' ? <Connections userId={account.id} pairId={pair?.pair.id} reload={refresh} /> : tab === 'settings' ? null : !loaded ? (
             <div className="empty">
               <h1>Your shared space.</h1>
               <p role="status">
@@ -570,7 +580,7 @@ function Workspace({
                           of {todaysGoals.length} habits complete today.
                         </p>
                       </div>
-                      <span aria-hidden="true">❧</span>
+                      <span aria-hidden="true"><BrewtualMark /></span>
                     </section>
                     <div className="section-heading">
                       <h2>Today’s little rituals</h2>
@@ -787,6 +797,8 @@ function Workspace({
           {loaded && tab === 'settings' && (
             <section className="card settings">
               <h2>Your preferences</h2>
+              <div className="theme-tiles settings-themes">{themes.map(value => <button key={value} className={`theme-tile tile-${value} ${theme === value ? 'chosen' : ''}`} aria-pressed={theme === value} onClick={() => setTheme(value)}><span className="theme-mountains"/><span>{value === 'plum' ? 'Aurora' : value[0].toUpperCase() + value.slice(1)} {theme === value ? '✓' : ''}</span></button>)}</div>
+              <button className="subtle" onClick={() => setTab('together')}>＋ Invite someone or join a space</button>
               <Field label="Color theme">
                 <select value={theme} onChange={(event) => setTheme(event.target.value)}>
                   {themes.map((value) => (
@@ -1083,7 +1095,7 @@ function Empty({ title, text }: { title: string; text: string }) {
   return (
     <section className="card empty">
       <span className="accent" aria-hidden="true">
-        ❧
+        <BrewtualMark />
       </span>
       <h3>{title}</h3>
       <p className="muted">{text}</p>

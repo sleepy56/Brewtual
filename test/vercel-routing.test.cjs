@@ -81,7 +81,7 @@ test(
     assert.equal(home.headers.get('x-content-type-options'), 'nosniff');
     assert.equal(home.headers.get('referrer-policy'), 'no-referrer');
     assert.match(home.headers.get('strict-transport-security'), /max-age=31536000/);
-    assert.match(await home.text(), /Pair Habits/);
+    assert.match(await home.text(), /brewtual/);
     const verify = await fetch(`${url}/verify-email`);
     assert.equal(verify.status, 200);
     assert.match(await verify.text(), /One last little step/);
