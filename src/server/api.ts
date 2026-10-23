@@ -181,6 +181,44 @@ export function createApi(services: Services) {
 
       if (endpoint.startsWith('/auth/')) throw new NotFoundError('Route not found');
       const user = await services.identity.authenticate(request.headers.get('authorization'));
+      if (endpoint === '/circles' && method === 'GET') return json(await services.circles.list(user.id));
+      if (endpoint === '/circles' && method === 'POST') {
+        const data = await body(request, z.strictObject({ name: z.string().trim().min(1).max(80) }));
+        return json(await services.circles.create(user.id, data.name));
+      }
+      if (endpoint === '/connections/codes' && method === 'POST') {
+        const data = await body(request, z.strictObject({ kind: z.enum(['partner', 'group']), targetId: z.uuid() }));
+        return json(await services.circles.code(user.id, data.kind, data.targetId));
+      }
+      if (endpoint === '/connections/join' && method === 'POST') {
+        const data = await body(request, z.strictObject({ code: z.string().trim().min(1).max(100) }));
+        return json(await services.circles.join(user.id, data.code));
+      }
+      const circleRoute = /^\/circles\/([^/]+)\/(goals|offers)(?:\/([^/]+)\/(progress|cheer|pledge))?$/.exec(endpoint);
+      if (circleRoute && method === 'POST') {
+        const [, circleId, resource, id, action] = circleRoute;
+        if (!z.uuid().safeParse(circleId).success || (id && !z.uuid().safeParse(id).success)) throw new BadRequestError('Invalid ID');
+        if (!id && resource === 'goals') {
+          const data = await body(request, z.strictObject({ title: z.string().trim().min(1).max(160), target: z.number().int().min(1).max(10000) }));
+          return json(await services.circles.goal(user.id, circleId, data.title, data.target));
+        }
+        if (!id && resource === 'offers') {
+          const data = await body(request, z.strictObject({ title: z.string().trim().min(1).max(500), goalId: z.uuid() }));
+          return json(await services.circles.offer(user.id, circleId, data.goalId, data.title));
+        }
+        if (resource === 'goals' && action === 'progress') {
+          const data = await body(request, z.strictObject({ progress: z.number().int().min(0).max(10000) }));
+          return json(await services.circles.progress(user.id, circleId, id, data.progress));
+        }
+        if (resource === 'goals' && action === 'cheer') {
+          await body(request, schemas.emptySchema);
+          return json(await services.circles.cheer(user.id, circleId, id));
+        }
+        if (resource === 'offers' && action === 'pledge') {
+          await body(request, schemas.emptySchema);
+          return json(await services.circles.pledge(user.id, circleId, id));
+        }
+      }
       if (method === 'GET') {
         switch (endpoint) {
           case '/me':

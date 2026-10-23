@@ -39,6 +39,83 @@ model User {
   authSessions       AuthSession[]
   memberships        Membership[]
   checkIns           CheckIn[]
+  circleMemberships CircleMember[]
+}
+
+model Circle {
+  id String @id @default(uuid()) @db.Uuid
+  name String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  members CircleMember[]
+  goals CircleGoal[]
+  offers CircleOffer[]
+}
+
+model CircleMember {
+  circleId String @db.Uuid
+  userId String @db.Uuid
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals CircleGoal[]
+  offers CircleOffer[]
+  cheers CircleCheer[]
+  pledges CirclePledge[]
+  @@id([circleId, userId])
+}
+
+model CircleGoal {
+  id String @id @default(uuid()) @db.Uuid
+  circleId String @db.Uuid
+  ownerId String @db.Uuid
+  title String
+  target Int
+  progress Int @default(0)
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  owner CircleMember @relation(fields: [circleId, ownerId], references: [circleId, userId], onDelete: Cascade)
+  cheers CircleCheer[]
+  offers CircleOffer[]
+  @@unique([id, circleId])
+}
+
+model CircleCheer {
+  goalId String @db.Uuid
+  circleId String @db.Uuid
+  userId String @db.Uuid
+  goal CircleGoal @relation(fields: [goalId, circleId], references: [id, circleId], onDelete: Cascade)
+  member CircleMember @relation(fields: [circleId, userId], references: [circleId, userId], onDelete: Cascade)
+  @@id([goalId, userId])
+}
+
+model CircleOffer {
+  id String @id @default(uuid()) @db.Uuid
+  circleId String @db.Uuid
+  authorId String @db.Uuid
+  goalId String @db.Uuid
+  title String
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  author CircleMember @relation(fields: [circleId, authorId], references: [circleId, userId], onDelete: Cascade)
+  goal CircleGoal @relation(fields: [goalId, circleId], references: [id, circleId], onDelete: Cascade)
+  pledges CirclePledge[]
+  @@unique([id, circleId])
+}
+
+model CirclePledge {
+  offerId String @db.Uuid
+  circleId String @db.Uuid
+  userId String @db.Uuid
+  offer CircleOffer @relation(fields: [offerId, circleId], references: [id, circleId], onDelete: Cascade)
+  member CircleMember @relation(fields: [circleId, userId], references: [circleId, userId], onDelete: Cascade)
+  @@id([offerId, userId])
+}
+
+model ConnectionCode {
+  hash String @id
+  kind String
+  targetId String @db.Uuid
+  creatorId String @db.Uuid
+  expiresAt DateTime @db.Timestamptz(6)
+  usedAt DateTime? @db.Timestamptz(6)
+  @@index([targetId])
 }
 
 model Pair {

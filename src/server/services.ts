@@ -9,6 +9,7 @@ import { PairAccessService } from './pairs/pair-access.service';
 import { PairsService } from './pairs/pairs.service';
 import { RewardsService } from './rewards/rewards.service';
 import { WalletService } from './wallet/wallet.service';
+import { CirclesService } from './circles/circles.service';
 
 export function createServices(
   db = new PrismaService(),
@@ -18,6 +19,7 @@ export function createServices(
   const access = new PairAccessService(db);
   return {
     db,
+    circles: new CirclesService(db),
     auth: new AuthService(db, mail),
     identity: new Authenticator(db),
     pairs: new PairsService(db, access),

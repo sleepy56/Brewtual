@@ -163,4 +163,18 @@ describe('Next API contract', () => {
     expect(preflight.status).toBe(204);
     expect(preflight.headers.get('access-control-allow-origin')).toBe('https://app.example.com');
   });
+  it('validates circle routes before invoking storage and authenticates connection codes', async () => {
+    expect((await request('/circles')).status).toBe(401);
+    expect((await request('/connections/join', { code: 'GROUP-example' })).status).toBe(401);
+    services.identity.authenticate.mockResolvedValue({ id: 'alice', email: 'alice@example.com' });
+    services.circles = { list: jest.fn().mockResolvedValue([]), goal: jest.fn(), join: jest.fn().mockResolvedValue({ kind: 'group' }) };
+    expect((await request('/circles')).status).toBe(200);
+    expect(services.circles.list).toHaveBeenCalledWith('alice');
+    expect((await request('/connections/codes', { kind: 'group', targetId: 'forged' })).status).toBe(400);
+    expect((await request('/circles/11111111-1111-4111-8111-111111111111/goals', { title: 'Read', target: -1 })).status).toBe(400);
+    expect(services.circles.goal).not.toHaveBeenCalled();
+    expect((await request('/connections/join', { code: ' GROUP-example ' })).status).toBe(201);
+    expect(services.circles.join).toHaveBeenCalledWith('alice', 'GROUP-example');
+  });
+
 });
