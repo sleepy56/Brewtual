@@ -1,6 +1,6 @@
-# Next.js web/API and Expo phone deployment
+# Brewtual deployment and phone installation
 
-The repository root is one Next.js app, deployed as one Vercel project. The website uses ordinary React/TypeScript and the API uses Next.js Node route handlers. The existing Expo phone app remains in `mobile/` and calls the same `/api/v1` endpoints. Neon data, table names, passwords, session signing settings and the Prisma migration history are preserved. This framework migration needs no database reset or new migration.
+The repository root is one Next.js app, deployed as one Vercel project. The website uses ordinary React/TypeScript and the API uses Next.js Node route handlers. The existing Expo phone app remains in `mobile/` and calls the same `/api/v1` endpoints. Neon data, table names, passwords, session signing settings and the Prisma migration history are preserved. The framework migration itself did not require a database reset. The current friend-circle features add a new migration; apply it to existing databases before using Together.
 
 ## Vercel settings
 
@@ -36,22 +36,40 @@ Set these in Vercel Environment Variables for Production. Keep secrets out of `N
 
 SMTP is optional for signup and login. With `REQUIRE_EMAIL_VERIFICATION` unset or `false`, accounts are created immediately and no email is sent, even if SMTP variables exist. Once email delivery is ready, configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`, then set `REQUIRE_EMAIL_VERIFICATION=true` and redeploy. Unverified accounts will then need to confirm their email before using the app. [Authentication details](AUTHENTICATION_PLAN.md).
 
-Keep `AUTH_MODE=local`, `LOCAL_AUTH_SECRET` and `TEST_DATABASE_URL` out of production. Next.js manages `NODE_ENV` and `PORT`. Existing production migrations need not be rerun for this change; new databases use `npm run db:migrate` with the direct URL. Builds only generate the Prisma client and Next.js output.
+Keep `AUTH_MODE=local`, `LOCAL_AUTH_SECRET` and `TEST_DATABASE_URL` out of production. Next.js manages `NODE_ENV` and `PORT`. Run `npm run db:migrate` with the configured direct database URL before releasing schema changes, including the additive `20261023170000_friend_circles` migration. Apply it to existing databases as well as new ones; it preserves partner records. Builds only generate the Prisma client and Next.js output; they do not apply migrations or send email.
 
 For preview signup tests, use preview-specific `APP_WEB_URL` and `CORS_ORIGINS`. Browser refresh cookies remain HttpOnly, SameSite Strict and Secure in production; web and API share one origin.
 
 ## Verify a deployment
 
-1. Open `/`: the sign-in page should load.
+1. Open `/`: the public Brewtual landing page should load. Use Log in to open the account screen.
 2. Open `/verify-email`: the verification page should load without consuming a token on GET.
 3. Open `/api/v1/health`: expect 200 and `{"status":"ok"}`.
 4. Open `/api/v1/health/ready`: expect 200 and `{"status":"ready"}`. A 503 here indicates configuration or database connectivity trouble; it should not crash the website.
-5. Create an account with an email and password, then sign in immediately. Test pair access and one habit mutation. Verification is required only if explicitly enabled.
+5. Create an account with an email and password, then sign in immediately. Test pair access and one habit mutation. Also test a partner code and a group code with separate accounts, circle goal ownership, cheering, and voluntary milestone pledges. Verification is required only if explicitly enabled.
 
 Local `npm run test:vercel` builds and starts the production server with `require(esm)` disabled, checks the pages and API, and verifies the website survives an unavailable database. `npm run test:integration` covers real local PostgreSQL transactions using isolated schemas and fake email. Neither check touches Neon or sends email.
 
 ## Expo on a phone
 
-Set `EXPO_PUBLIC_API_URL=https://pair-habit.vercel.app/api/v1` in `mobile/.env`, then restart Expo with `npm run mobile`. Use the development QR workflow supported by your Expo SDK. Native iOS/Android release builds are separate Expo builds; Vercel hosts their API, not their installation packages. Browser Home Screen shortcuts use the responsive Next.js website instead.
+Set `EXPO_PUBLIC_API_URL=https://pair-habit.vercel.app/api/v1` in `mobile/.env`, then restart Expo with `npm run mobile`. Use the development QR workflow supported by your Expo SDK. Native iOS/Android release builds are separate Expo builds; Vercel hosts their API, not their installation packages. The installable responsive website uses the Next.js app instead; see the home-screen instructions below.
 
 For local phone development, use your computer's LAN IP on port 3000 rather than localhost. The native API contract and SecureStore refresh-token transport are unchanged. Optional `npm run mobile:web` previews the existing Expo UI in a browser, while `npm run dev` opens the Next.js website.
+
+## Install the website on a phone
+
+Deploy the website to HTTPS, then open its address on the phone and use **Get the phone app** for platform-specific instructions.
+
+- **Android / Chrome:** choose Install app when offered, or use the browser menu’s Install app / Add to Home screen option.
+- **iPhone / Safari:** tap Share, choose Add to Home Screen, and enable Open as Web App when offered.
+
+The website includes an app manifest, icons, and a service worker. Shared account data requires an internet connection. The service worker caches only a generic offline reconnect page and an icon; it never caches authenticated pages or API responses. This installation does not create an Expo native release package.
+
+Physical-device installation, safe areas, and platform-specific behavior still require testing on the deployed HTTPS origin. Friend circles are currently part of the website; the separate Expo client retains its existing partner flow.
+
+## Related guides
+
+- [Development and troubleshooting](DEVELOPMENT.md)
+- [Friend circles and invites](FRIEND_CIRCLES.md)
+- [Account and session administration](AUTHENTICATION_PLAN.md)
+- [Expo client setup](../mobile/README.md)

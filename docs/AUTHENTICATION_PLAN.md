@@ -43,3 +43,15 @@ The verification schema and migration history are unchanged. No new migration or
 - `EXPO_PUBLIC_API_URL`: the Expo client's public API base ending in `/api/v1`, such as `https://pair-habit.vercel.app/api/v1`. Local Expo can use `http://localhost:3000/api/v1`; a physical phone needs the computer's LAN address. The Next.js website uses `/api/v1` directly. Never put server secrets in `EXPO_PUBLIC_*`.
 
 Password hashes use Node scrypt with N=32768, r=8, p=1, random 16-byte salt, 64-byte output and constant-time verification. Password recovery remains an operator action after independently establishing ownership. Authenticated API data is held in memory and is not cached in AsyncStorage. AsyncStorage remains limited to the explicit fictional demo and theme preference. Web uses same-origin `/api/v1`; native builds must set `EXPO_PUBLIC_API_URL` to a reachable API base ending in `/api/v1`.
+
+## Operator-managed account provisioning and password resets
+
+After independently establishing account ownership, a trusted operator can create/verify an account or replace its password and revoke its sessions:
+
+```powershell
+$accountPassword = Read-Host 'New individual password (15–128 characters)' -MaskInput
+$accountPassword | npm run auth:provision -- your-email@example.com
+Remove-Variable accountPassword
+```
+
+`-MaskInput` requires PowerShell 7. The command reads the password from stdin rather than command-line arguments. Public signup never overwrites an existing account. This is an administrative operation, not a public password-recovery flow.
