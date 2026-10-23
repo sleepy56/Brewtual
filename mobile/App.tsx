@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, BackHandler, KeyboardAvoidingView, Platform, Pressable, View, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { AppText, Avatar, Button, Icon, IconButton, IconName } from './src/components';
+import { BrewtualMark, AppText, Avatar, Button, Icon, IconButton, IconName } from './src/components';
 import { useDemo } from './src/demo';
 import { ThemeProvider, useTheme } from './src/theme';
 import { Route, TabName } from './src/types';
@@ -57,14 +57,14 @@ function AppShell() {
     return () => subscription.remove();
   }, [goBack, history.length]);
 
-  if (!themeReady || !demoReady) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.bg }}><ActivityIndicator color={theme.accent} accessibilityLabel="Opening Pair Habits" /></View>;
+  if (!themeReady || !demoReady) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.bg }}><ActivityIndicator color={theme.accent} accessibilityLabel="Opening brewtual" /></View>;
   const CurrentScreen = screens[route.name];
   const isTab = tabs.some(tab => tab.name === route.name);
   const selectedTab = route.name === 'new-goal' || route.name === 'goal-detail' || route.name === 'approvals' ? 'goals' : activeTab;
   return <View style={{ flex: 1, flexDirection: 'row', justifyContent: desktop ? 'flex-start' : 'center', backgroundColor: theme.bg }}>
     <StatusBar style={theme.isDark ? 'light' : 'dark'} />
     {desktop && <View style={{ width: 240, padding: 24, borderRightWidth: 1, borderRightColor: theme.border, backgroundColor: theme.surface }}>
-      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 36 }}><Icon name="leaf" color={theme.accent} /><AppText variant="heading">pair habits.</AppText></View>
+      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 36 }}><BrewtualMark /><AppText variant="heading">brewtual</AppText></View>
       <AppText variant="eyebrow" color={theme.muted} style={{ marginBottom: 12 }}>YOUR SHARED ROUTINE</AppText>
       {tabs.map(tab => <Pressable key={tab.name} accessibilityRole="button" accessibilityState={{ selected: selectedTab === tab.name }} onPress={() => navigate({ name: tab.name })} style={({ pressed }) => ({ minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, marginBottom: 8, borderRadius: 12, backgroundColor: selectedTab === tab.name || pressed ? theme.accentSoft : 'transparent' })}><Icon name={tab.icon} color={selectedTab === tab.name ? theme.accent : theme.muted} /><AppText>{tab.label}</AppText></Pressable>)}
       <View style={{ flex: 1 }} />
@@ -73,7 +73,7 @@ function AppShell() {
     </View>}
     <SafeAreaView edges={route.name === 'new-goal' ? ['top', 'left', 'right', 'bottom'] : ['top', 'left', 'right']} style={{ flex: 1, width: '100%', maxWidth: desktop ? 880 : 460, alignSelf: 'stretch', backgroundColor: theme.bg }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12, minHeight: 68 }}>
-        {isTab ? <Pressable onPress={() => navigate({ name: 'today' })} accessibilityRole="button" accessibilityLabel="Pair Habits Today" style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 7 }}><Icon name="leaf" size={26} color={theme.accent} /><AppText variant="heading" style={{ fontSize: 24 }}>pair habits.</AppText></Pressable>
+        {isTab ? <Pressable onPress={() => navigate({ name: 'today' })} accessibilityRole="button" accessibilityLabel="brewtual Today" style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 7 }}><BrewtualMark size={26} /><AppText variant="heading" style={{ fontSize: 24 }}>brewtual</AppText></Pressable>
           : <IconButton name="back" label="Go back" onPress={goBack} />}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
           <IconButton name="bell" label={`Approvals, ${pendingCount} waiting`} badgeCount={pendingCount} onPress={() => navigate({ name: 'approvals' })} />

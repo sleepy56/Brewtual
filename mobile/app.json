@@ -1,13 +1,22 @@
 {
   "expo": {
-    "name": "Pair Habits",
+    "name": "brewtual",
     "slug": "pair-habits",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "scheme": "pairhabits",
-    "ios": { "supportsTablet": true },
-    "android": { "softwareKeyboardLayoutMode": "resize" },
-    "web": { "bundler": "metro", "name": "Pair Habits", "shortName": "Pair Habits" }
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "web": {
+      "bundler": "metro",
+      "name": "brewtual",
+      "shortName": "brewtual"
+    },
+    "icon": "./assets/brewtual-icon.png"
   }
 }

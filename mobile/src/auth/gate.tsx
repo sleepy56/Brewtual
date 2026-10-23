@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AppText, Button, Card, Icon, PlantArt } from '../components';
+import { BrewtualMark, AppText, Button, Card, Icon, PlantArt } from '../components';
 import { useTheme } from '../theme';
 import { DemoProvider } from '../demo';
 import { LiveProvider } from '../live';
@@ -76,7 +76,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
         <View style={{ width: '100%', maxWidth: 480 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 24 }}><Icon name="leaf" color={theme.accent} /><AppText variant="heading">pair habits.</AppText></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 24 }}><BrewtualMark /><AppText variant="heading">brewtual</AppText></View>
           <PlantArt size={100} />
           <AppText variant="heading" style={{ marginTop: 16, marginBottom: 8 }}>A little better, together.</AppText>
           <AppText color={theme.muted} style={{ marginBottom: 24 }}>{mode === 'verify' ? 'Enter the password you chose at signup to verify your email.' : 'Your own account opens your shared space.'}</AppText>

@@ -23,7 +23,7 @@ async function request(path: string, body: object) {
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       signal: AbortSignal.timeout(15000),
     });
-  } catch { throw new AuthError('Cannot reach Pair Habits. Check your connection and try again.'); }
+  } catch { throw new AuthError('Cannot reach brewtual. Check your connection and try again.'); }
   if (!response.ok) throw new AuthError(response.status === 429 ? 'Too many attempts. Wait a minute and try again.' : response.status === 401 ? 'Sign-in failed or your session expired. Please try again.' : 'Sign-in is unavailable. Please try again later.', response.status);
   return response.json();
 }
@@ -38,7 +38,7 @@ export async function apiRequest<T>(path: string, method = 'GET', body?: object,
     try { return await fetch(`${API}${path}`, { method, credentials: native ? 'omit' : 'include',
       headers: { ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}), ...(key ? { 'Idempotency-Key': key } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(15000) }); }
-    catch { throw new AuthError('Cannot reach Pair Habits. Check your connection and try again.'); }
+    catch { throw new AuthError('Cannot reach brewtual. Check your connection and try again.'); }
   }
   let response = await send();
   if (response.status === 401) { await refreshSession(); response = await send(); }
