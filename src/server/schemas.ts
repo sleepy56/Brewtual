@@ -48,3 +48,36 @@ export const rewardSchema = z.strictObject({
 });
 export type CreateGoal = z.infer<typeof goalSchema>;
 export type CreateReward = z.infer<typeof rewardSchema>;
+
+const timezone = pairSchema.shape.timezone;
+const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => {
+  const date = new Date(value + 'T12:00:00Z');
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0,10) === value;
+}, 'Use a valid calendar date');
+export const personalTaskSchema = z.strictObject({
+  title: z.string().trim().min(1).max(160),
+  notes: z.string().max(2000).default(''),
+  kind: z.enum(['TODO','DAILY','GOAL']),
+  timezone,
+  weekdays: goalSchema.shape.weekdays.default([1,2,3,4,5,6,7]),
+  dueOn: dateOnly.nullable().default(null),
+  target: z.number().int().min(1).max(10000).default(1),
+}).refine(value => value.kind === 'GOAL' || value.target === 1, 'Tasks and Dailies have a target of 1');
+export const personalTaskEditSchema = z.strictObject({
+  title: z.string().trim().min(1).max(160),
+  notes: z.string().max(2000),
+  weekdays: goalSchema.shape.weekdays,
+  dueOn: dateOnly.nullable(),
+  target: z.number().int().min(1).max(10000),
+});
+export const scopeSchema = z.strictObject({ scopeKind: z.enum(['PAIR','GROUP']), scopeId: z.uuid() });
+export const taskTokenSchema = scopeSchema.extend({ tokens: z.number().int().min(1).max(10000) });
+export const spaceRewardSchema = scopeSchema.extend({
+  title: z.string().trim().min(1).max(160),
+  expectation: z.string().trim().min(1).max(1000),
+  cost: z.number().int().min(1).max(1000000),
+});
+export const decisionSchema = z.strictObject({ approve: z.boolean() });
+export type CreatePersonalTask = z.infer<typeof personalTaskSchema>;
+export type EditPersonalTask = z.infer<typeof personalTaskEditSchema>;
+export type Space = z.infer<typeof scopeSchema>;

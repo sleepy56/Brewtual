@@ -9,6 +9,7 @@ import { PairAccessService } from './pairs/pair-access.service';
 import { PairsService } from './pairs/pairs.service';
 import { RewardsService } from './rewards/rewards.service';
 import { WalletService } from './wallet/wallet.service';
+import { PlannerService } from './planner/planner.service';
 import { CirclesService } from './circles/circles.service';
 
 export function createServices(
@@ -19,6 +20,7 @@ export function createServices(
   const access = new PairAccessService(db);
   return {
     db,
+    planner: new PlannerService(db, clock),
     circles: new CirclesService(db),
     auth: new AuthService(db, mail),
     identity: new Authenticator(db),

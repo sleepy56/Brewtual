@@ -27,5 +27,5 @@ export function mapRequest(item: ApiRedemption, byId: (id: string) => PersonId, 
 }
 export function mapLedger(item: ApiLedger, requests: RewardRequest[], person: PersonId, timezone = 'UTC'): LedgerEntry {
   const request = requests.find(value => value.id === item.sourceId);
-  return { id: item.id, member: person, amount: item.amount, title: request?.title ?? (item.amount > 0 ? 'Weekly goal award' : 'Reward redemption'), detail: item.reason === 'WEEKLY_AWARD' ? 'Closed week award' : 'Approved reward cost', date: new Date(item.createdAt).toLocaleDateString('en-US', { timeZone: timezone }), source: item.sourceId, type: item.amount > 0 ? 'award' : 'reward' };
+  return { id: item.id, member: person, amount: item.amount, title: request?.title ?? (item.reason === 'TASK_AWARD' ? 'Approved task completed' : item.amount > 0 ? 'Weekly goal award' : 'Reward redemption'), detail: item.reason === 'TASK_AWARD' ? 'Task token award' : item.reason === 'WEEKLY_AWARD' ? 'Closed week award' : 'Approved reward cost', date: new Date(item.createdAt).toLocaleDateString('en-US', { timeZone: timezone }), source: item.sourceId, type: item.amount > 0 ? 'award' : 'reward' };
 }

@@ -28,6 +28,7 @@ enum RedemptionStatus {
 enum LedgerReason {
   WEEKLY_AWARD
   REWARD_REDEMPTION
+  TASK_AWARD
 }
 
 model User {
@@ -40,6 +41,9 @@ model User {
   memberships        Membership[]
   checkIns           CheckIn[]
   circleMemberships CircleMember[]
+  personalTasks PersonalTask[]
+  marketOffers SpaceReward[] @relation("SpaceOfferer")
+  marketRedemptions SpaceRedemption[]
 }
 
 model Circle {
@@ -49,6 +53,7 @@ model Circle {
   members CircleMember[]
   goals CircleGoal[]
   offers CircleOffer[]
+  tokenEntries CircleTokenEntry[]
 }
 
 model CircleMember {
@@ -60,6 +65,7 @@ model CircleMember {
   offers CircleOffer[]
   cheers CircleCheer[]
   pledges CirclePledge[]
+  tokenEntries CircleTokenEntry[]
   @@id([circleId, userId])
 }
 
@@ -285,4 +291,115 @@ model PendingSignup {
   lastSentAt    DateTime @db.Timestamptz(6)
   windowStart   DateTime @db.Timestamptz(6)
   sendCount     Int
+}
+
+enum PersonalTaskKind {
+  TODO
+  DAILY
+  GOAL
+}
+
+enum TaskSpaceKind {
+  PAIR
+  GROUP
+}
+
+model PersonalTask {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  title String
+  notes String @default("")
+  kind PersonalTaskKind
+  timezone String
+  weekdays Int[]
+  dueOn String?
+  target Int @default(1)
+  progress Int @default(0)
+  archived Boolean @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completions TaskCompletion[]
+  proposals TaskTokenProposal[]
+  @@index([userId, archived])
+}
+
+model TaskCompletion {
+  id String @id @default(uuid()) @db.Uuid
+  taskId String @db.Uuid
+  period String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  task PersonalTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  awards TaskAward[]
+  @@unique([taskId, period])
+}
+
+model TaskTokenProposal {
+  id String @id @default(uuid()) @db.Uuid
+  taskId String @db.Uuid
+  scopeKind TaskSpaceKind
+  scopeId String @db.Uuid
+  tokens Int
+  status GoalStatus @default(PENDING)
+  approvedById String? @db.Uuid
+  approvedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  task PersonalTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  awards TaskAward[]
+  @@unique([taskId, scopeKind, scopeId])
+  @@index([scopeKind, scopeId])
+}
+
+model TaskAward {
+  id String @id @default(uuid()) @db.Uuid
+  completionId String @db.Uuid
+  proposalId String @db.Uuid
+  tokens Int
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  completion TaskCompletion @relation(fields: [completionId], references: [id], onDelete: Restrict)
+  proposal TaskTokenProposal @relation(fields: [proposalId], references: [id], onDelete: Restrict)
+  @@unique([completionId, proposalId])
+}
+
+model CircleTokenEntry {
+  id String @id @default(uuid()) @db.Uuid
+  circleId String @db.Uuid
+  userId String @db.Uuid
+  amount Int
+  reason LedgerReason
+  sourceId String @db.Uuid
+  idempotencyKey String @unique
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  member CircleMember @relation(fields: [circleId, userId], references: [circleId, userId], onDelete: Restrict)
+  @@index([circleId, userId])
+}
+
+model SpaceReward {
+  id String @id @default(uuid()) @db.Uuid
+  scopeKind TaskSpaceKind
+  scopeId String @db.Uuid
+  offeredById String @db.Uuid
+  title String
+  expectation String
+  cost Int
+  status RewardStatus @default(PENDING)
+  approvedById String? @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  offerer User @relation("SpaceOfferer", fields: [offeredById], references: [id], onDelete: Restrict)
+  redemptions SpaceRedemption[]
+  @@index([scopeKind, scopeId])
+}
+
+model SpaceRedemption {
+  id String @id @default(uuid()) @db.Uuid
+  rewardId String @db.Uuid
+  spenderId String @db.Uuid
+  cost Int
+  idempotencyKey String
+  status RedemptionStatus @default(REQUESTED)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  fulfilledAt DateTime? @db.Timestamptz(6)
+  reward SpaceReward @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+  spender User @relation(fields: [spenderId], references: [id], onDelete: Restrict)
+  @@unique([spenderId, idempotencyKey])
 }

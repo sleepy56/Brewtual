@@ -177,4 +177,21 @@ describe('Next API contract', () => {
     expect(services.circles.join).toHaveBeenCalledWith('alice', 'GROUP-example');
   });
 
+  it('keeps personal tasks independent of pair membership and validates planner inputs', async () => {
+    expect((await request('/planner/tasks')).status).toBe(401);
+    services.identity.authenticate.mockResolvedValue({id:'alice',email:'alice@example.test'});
+    services.planner={ tasks:jest.fn().mockResolvedValue([]), createTask:jest.fn().mockResolvedValue({id:'task'}), completeTask:jest.fn() };
+    expect((await request('/planner/tasks')).status).toBe(200);
+    expect(services.planner.tasks).toHaveBeenCalledWith('alice');
+    expect(services.pairs.createPair).not.toHaveBeenCalled();
+    const valid={title:'Read',kind:'DAILY',timezone:'Asia/Kolkata',weekdays:[1,3,5],target:1};
+    expect((await request('/planner/tasks',valid)).status).toBe(201);
+    expect((await request('/planner/tasks',{...valid,userId:'bob'})).status).toBe(400);
+    expect((await request('/planner/tasks',{...valid,weekdays:[1,1]})).status).toBe(400);
+    expect((await request('/planner/tasks',{...valid,target:10})).status).toBe(400);
+    expect((await request('/planner/tasks',{...valid,dueOn:'2026-02-31'})).status).toBe(400);
+    expect((await request('/planner/tasks/not-an-id/complete',{completed:true})).status).toBe(400);
+    expect((await request('/planner/market?scopeKind=GROUP&scopeId=invalid')).status).toBe(400);
+  });
+
 });

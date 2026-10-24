@@ -181,6 +181,53 @@ export function createApi(services: Services) {
 
       if (endpoint.startsWith('/auth/')) throw new NotFoundError('Route not found');
       const user = await services.identity.authenticate(request.headers.get('authorization'));
+      if (method === 'GET' && endpoint === '/planner/tasks') return json(await services.planner.tasks(user.id));
+      if (method === 'GET' && endpoint === '/planner/spaces') {
+        try {
+          await services.pairs.current(user.id);
+          let more = true;
+          while (more) more = (await services.wallet.settle(user.id)).hasMore;
+        } catch (error) { if (!(error instanceof ForbiddenError)) throw error; }
+        return json(await services.planner.spaces(user.id));
+      }
+      if (method === 'GET' && endpoint === '/planner/market') {
+        const params = new URL(request.url).searchParams;
+        const parsed = schemas.scopeSchema.safeParse({ scopeKind: params.get('scopeKind'), scopeId: params.get('scopeId') });
+        if (!parsed.success) throw new BadRequestError('Choose a valid partner or group space.');
+        return json(await services.planner.market(user.id, parsed.data));
+      }
+      if (method === 'POST' && endpoint === '/planner/tasks') return json(await services.planner.createTask(user.id, await body(request, schemas.personalTaskSchema)));
+      if (method === 'POST' && endpoint === '/planner/rewards') return json(await services.planner.offer(user.id, await body(request, schemas.spaceRewardSchema)));
+      const plannerRoute = /^\/planner\/(tasks|requests|rewards|redemptions)\/([^/]+)\/(edit|archive|complete|progress|request-tokens|decide|redeem|fulfill)$/.exec(endpoint);
+      if (method === 'POST' && plannerRoute) {
+        const [, resource, id, action] = plannerRoute;
+        if (!z.uuid().safeParse(id).success) throw new BadRequestError('Invalid ID');
+        if (resource === 'tasks') {
+          if (action === 'edit') return json(await services.planner.editTask(user.id, id, await body(request, schemas.personalTaskEditSchema)));
+          if (action === 'archive') {
+            const data = await body(request, z.strictObject({ archived: z.boolean() }));
+            return json(await services.planner.archiveTask(user.id, id, data.archived));
+          }
+          if (action === 'complete') return json(await services.planner.completeTask(user.id, id, await body(request, z.strictObject({ completed: z.boolean() }))));
+          if (action === 'progress') return json(await services.planner.completeTask(user.id, id, await body(request, z.strictObject({ delta: z.union([z.literal(1), z.literal(-1)]) }))));
+          if (action === 'request-tokens') {
+            const data = await body(request, schemas.taskTokenSchema);
+            return json(await services.planner.propose(user.id, id, data, data.tokens));
+          }
+        }
+        if ((resource === 'requests' || resource === 'rewards') && action === 'decide') {
+          const data = await body(request, schemas.decisionSchema);
+          return json(await (resource === 'requests' ? services.planner.decideProposal(user.id, id, data.approve) : services.planner.decideReward(user.id, id, data.approve)));
+        }
+        if (resource === 'rewards' && action === 'redeem') {
+          await body(request, schemas.emptySchema);
+          return json(await services.planner.redeem(user.id, id, request.headers.get('idempotency-key') ?? ''));
+        }
+        if (resource === 'redemptions' && action === 'fulfill') {
+          await body(request, schemas.emptySchema);
+          return json(await services.planner.fulfill(user.id, id));
+        }
+      }
       if (endpoint === '/circles' && method === 'GET') return json(await services.circles.list(user.id));
       if (endpoint === '/circles' && method === 'POST') {
         const data = await body(request, z.strictObject({ name: z.string().trim().min(1).max(80) }));
