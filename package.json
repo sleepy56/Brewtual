@@ -18,7 +18,7 @@
     "build": "prisma generate && next build",
     "build:vercel": "npm run build",
     "test:vercel": "npm run build && node --test test/vercel-routing.test.cjs",
-    "test": "node scripts/run-tests.cjs --config jest.config.cjs && node --test test/web-client.test.cjs",
+    "test": "node scripts/run-tests.cjs --config jest.config.cjs && node --test test/web-client.test.cjs test/web-planner.test.cjs",
     "test:integration": "node scripts/run-tests.cjs --config jest.integration.config.cjs",
     "typecheck": "prisma generate && next typegen && tsc --noEmit",
     "db:generate": "prisma generate",

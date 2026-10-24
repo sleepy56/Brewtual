@@ -12,6 +12,7 @@ import {
   signOut,
   signup,
 } from './client';
+import { Planner } from './planner';
 import { BrewtualMark } from './brewtual-mark';
 import { Landing } from './landing';
 import { Connections } from './connections';
@@ -45,6 +46,7 @@ function Notice({ children, kind = 'error' }: { children: ReactNode; kind?: 'err
 export default function PairHabits({ verify = false }: { verify?: boolean }) {
   const [account, setAccount] = useState<Account | null>(null);
   const [showAuth, setShowAuth] = useState(verify);
+  const [showLegacy, setShowLegacy] = useState(false);
   const [ready, setReady] = useState(true);
   const [error, setError] = useState('');
   const [theme, setTheme] = useState('midnight');
@@ -87,6 +89,7 @@ export default function PairHabits({ verify = false }: { verify?: boolean }) {
       setError(`Sign-out could not reach the server. ${message(reason)}`);
     } finally {
       setAccount(null);
+      setShowLegacy(false);
     }
   }
   return (
@@ -97,13 +100,8 @@ export default function PairHabits({ verify = false }: { verify?: boolean }) {
           <p role="status">Opening your shared space…</p>
         </main>
       ) : account ? (
-        <Workspace
-          key={account.id}
-          account={account}
-          logout={logout}
-          theme={theme}
-          setTheme={changeTheme}
-        />
+        showLegacy ? <><button className="text-button planner-back" onClick={() => setShowLegacy(false)}>← Back to my planner</button><Workspace key={account.id} account={account} logout={logout} theme={theme} setTheme={changeTheme} /></> :
+        <Planner key={account.id} account={account} logout={logout} theme={theme} setTheme={changeTheme} openLegacy={() => setShowLegacy(true)} />
       ) : !showAuth ? (
         <Landing enter={() => setShowAuth(true)} theme={theme} setTheme={changeTheme} />
       ) : (
@@ -359,6 +357,11 @@ function Workspace({
         if (reason instanceof ApiError && reason.status === 403) {
           if (mounted.current) {
             setPair(null);
+            setGoals([]);
+            setRewards([]);
+            setRequests([]);
+            setLedger([]);
+            setBalance(0);
             setLoaded(true);
             setStale(false);
             setError('');
@@ -436,7 +439,8 @@ function Workspace({
       ? 'You'
       : (pair?.members.find((member) => member.user.id === id)?.user.email.split('@')[0] ??
         'Your partner');
-  const today = pair ? localDate(new Date(), pair.pair.timezone) : '';
+  const timezone = pair?.pair.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const today = localDate(new Date(), timezone);
   const monday = today ? weekStart(today) : '';
   const ownGoals = goals.filter((goal) => goal.ownerId === account.id && goal.status === 'ACTIVE');
   const todaysGoals = ownGoals.filter(
@@ -525,25 +529,25 @@ function Workspace({
             </Notice>
           )}
           {notice && <Notice kind="success">{notice}</Notice>}
-          {tab === 'together' ? <Connections userId={account.id} pairId={pair?.pair.id} reload={refresh} /> : tab === 'settings' ? null : !loaded ? (
+          {tab === 'together' ? (
+            <>
+              <Connections userId={account.id} pairId={pair?.pair.id} reload={refresh} />
+              {loaded && (!pair || pair.members.length < 2) && (
+                <PairSetup pair={pair} busy={busy || stale} run={mutate} refresh={() => refresh().catch(() => {})} />
+              )}
+            </>
+          ) : tab === 'settings' ? null : !loaded ? (
             <div className="empty">
               <h1>Your shared space.</h1>
               <p role="status">
                 {error ? 'We could not load your habits.' : 'Loading your habits…'}
               </p>
             </div>
-          ) : !pair || pair.members.length < 2 ? (
-            <PairSetup
-              pair={pair}
-              busy={busy || stale}
-              run={mutate}
-              refresh={() => refresh().catch(() => {})}
-            />
           ) : (
             <>
               <div className="page-heading">
                 <div>
-                  <p className="eyebrow">{pair.pair.name.toUpperCase()}</p>
+                  <p className="eyebrow">{pair?.pair.name.toUpperCase() ?? 'YOUR SHARED ROUTINE'}</p>
                   <h1>
                     {tab === 'today'
                       ? 'A little progress, together.'
@@ -564,6 +568,21 @@ function Workspace({
                   ↻ Refresh
                 </button>
               </div>
+              {(!pair || pair.members.length < 2) && tab !== 'activity' && (
+                <section className="card row between partner-notice">
+                  <div>
+                    <h2>{pair ? 'Your space is ready. Bring your person.' : 'Find your together.'}</h2>
+                    <p className="muted small">
+                      {pair
+                        ? 'You can propose habits and rewards now. Your partner can approve them after joining.'
+                        : 'Create a partner space for shared habits and rewards, or start a friend circle in Together.'}
+                    </p>
+                  </div>
+                  <button className="subtle" onClick={() => setTab('together')}>
+                    {pair ? 'Invite your partner →' : 'Choose your people →'}
+                  </button>
+                </section>
+              )}
               <fieldset disabled={busy || stale} className="workspace-actions" aria-busy={busy}>
                 {tab === 'today' && (
                   <>
@@ -585,13 +604,13 @@ function Workspace({
                     <div className="section-heading">
                       <h2>Today’s little rituals</h2>
                       <span className="small muted">
-                        {today} · {pair.pair.timezone}
+                        {today} · {timezone}
                       </span>
                     </div>
                     {!todaysGoals.length && (
                       <Empty
                         title="A little room to breathe."
-                        text="No habits scheduled for today. Explore your goals or propose something new."
+                        text={pair ? 'No habits scheduled for today. Explore your goals or propose something new.' : 'Your daily habits will appear here after you create a partner space. You can also track goals with a friend circle in Together.'}
                       />
                     )}
                     {todaysGoals.map((goal) => (
@@ -617,8 +636,8 @@ function Workspace({
                   <>
                     <div className="section-heading">
                       <h2>Your shared intentions</h2>
-                      <button className="primary" onClick={() => setCreating('goal')}>
-                        ＋ Propose a habit
+                      <button className="primary" onClick={() => pair ? setCreating('goal') : setTab('together')}>
+                        {pair ? '＋ Propose a habit' : 'Create a partner space →'}
                       </button>
                     </div>
                     {goals.length ? (
@@ -636,7 +655,7 @@ function Workspace({
                     ) : (
                       <Empty
                         title="Every routine starts somewhere."
-                        text="Propose a habit. Your partner approves it, and your first week starts the following Monday."
+                        text={pair ? 'Propose a habit. Your partner approves it, and your first week starts the following Monday.' : 'Create a partner space to propose habits, or open Together to add goals to a friend circle.'}
                       />
                     )}
                     {rewards
@@ -673,8 +692,8 @@ function Workspace({
                   <>
                     <div className="section-heading">
                       <h2>Made for each other</h2>
-                      <button className="primary" onClick={() => setCreating('reward')}>
-                        ＋ Offer a reward
+                      <button className="primary" onClick={() => pair ? setCreating('reward') : setTab('together')}>
+                        {pair ? '＋ Offer a reward' : 'Create a partner space →'}
                       </button>
                     </div>
                     <div className="reward-grid">
@@ -726,7 +745,7 @@ function Workspace({
                     {!rewards.length && (
                       <Empty
                         title="Something to look forward to."
-                        text="Offer a thoughtful reward and agree together on what it means."
+                        text={pair ? 'Offer a thoughtful reward and agree together on what it means.' : 'Create a partner space to offer rewards for each other’s progress.'}
                       />
                     )}
                   </>
@@ -770,13 +789,13 @@ function Workspace({
                       <article className="ledger-row" key={item.id}>
                         <div>
                           <strong>
-                            {item.reason === 'WEEKLY_AWARD'
+                            {item.reason === 'TASK_AWARD' ? 'Approved task completed' : item.reason === 'WEEKLY_AWARD'
                               ? 'Weekly habit award'
                               : 'Reward redemption'}
                           </strong>
                           <p className="small muted">
                             {new Date(item.createdAt).toLocaleDateString(undefined, {
-                              timeZone: pair.pair.timezone,
+                              timeZone: timezone,
                             })}
                           </p>
                         </div>
@@ -794,7 +813,7 @@ function Workspace({
               </fieldset>
             </>
           )}
-          {loaded && tab === 'settings' && (
+          {tab === 'settings' && (
             <section className="card settings">
               <h2>Your preferences</h2>
               <div className="theme-tiles settings-themes">{themes.map(value => <button key={value} className={`theme-tile tile-${value} ${theme === value ? 'chosen' : ''}`} aria-pressed={theme === value} onClick={() => setTheme(value)}><span className="theme-mountains"/><span>{value === 'plum' ? 'Aurora' : value[0].toUpperCase() + value.slice(1)} {theme === value ? '✓' : ''}</span></button>)}</div>
@@ -818,11 +837,6 @@ function Workspace({
                 Sign out
               </button>
             </section>
-          )}
-          {loaded && (!pair || pair.members.length < 2) && (
-            <button className="text-button" onClick={() => void logout()}>
-              Sign out
-            </button>
           )}
         </main>
         <nav className="bottom-nav" aria-label="Mobile navigation">

@@ -1121,3 +1121,70 @@ progress::-webkit-progress-value{background:linear-gradient(90deg,#dedcb5,#7fc6a
 .tile-midnight > span:last-child { background: #101116cc; }
 
 .brew-mark { display: inline-block; flex-shrink: 0; vertical-align: middle; overflow: visible; }
+
+.partner-notice h2 { font-size: 1.3rem; margin-bottom: 8px; }
+.partner-notice > div { max-width: 600px; }
+.connections + .onboarding { margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--border); }
+
+/* Personal planner */
+.planner-workspace .sidebar { width: 230px; }
+.planner-workspace .sidebar > .eyebrow { margin-top: 36px; }
+.planner-workspace .sidebar nav { gap: 3px; }
+.planner-workspace .sidebar nav button { min-height: 44px; }
+.planner-workspace .main-column { max-width: 1280px; }
+.planner-workspace .topbar { min-height: 78px; }
+.planner-welcome { position: relative; overflow: hidden; display:flex; justify-content:space-between; align-items:center; gap:20px; padding:40px; border:1px solid var(--border); border-radius:22px; background:radial-gradient(ellipse at 90% 50%, #b17b5c18, transparent 65%),var(--surface); }
+.planner-welcome h2 { font-size:clamp(2rem,4vw,3.5rem);line-height:1.12; }
+.planner-welcome h2 em { color:var(--accent); }
+.planner-welcome .muted { font-size:13px; margin:20px 0; }
+.ritual-watermark { font-size:170px;color:var(--accent);opacity:.6;margin-right:15px; }
+.planner-summary { display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0 32px; }
+.planner-summary button { margin:0;text-align:left;display:grid;gap:12px; }
+.planner-summary strong { font:36px Georgia,serif; }
+.planner-task { padding:24px; }
+.planner-task .eyebrow { margin-bottom:8px; }
+.planner-task h3 { font-size:17px;margin-bottom:8px; }
+.planner-task .task-copy { flex:1;min-width:0;overflow-wrap:anywhere; }
+.task-notes { white-space:pre-wrap;margin:8px 0; }
+.task-kind-mark { display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:var(--soft);color:var(--accent);font-size:24px; }
+.task-kind-mark.kind-goal { color:#c79a77;background:#c79a771a; }
+.task-actions { margin:18px 0 0;gap:10px; }
+.task-actions button { font-size:12px; }
+.task-finished { opacity:.82; }
+.task-proposals { display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 8px; }
+.planner-goal-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px; }
+.planner-goal-grid .card { margin:0; }
+.collection-filters { margin:0 0 20px;font-size:12px;color:var(--muted); }
+.collection-filters label { display:flex;align-items:center;gap:7px; }
+.collection-filters input { width:18px;height:18px;min-height:18px;padding:0;accent-color:var(--accent); }
+.market-selector { display:grid;gap:8px;font-size:12px;max-width:520px;margin-bottom:24px; }
+.market-balance-symbol { font:70px Georgia;color:var(--accent); }
+.market-locked > span { font-size:50px;color:var(--accent); }
+.market-locked .primary { margin-top:22px; }
+.market-reward-art { height:100px;display:grid;place-items:center;font:65px Georgia;color:#c79a77;background:radial-gradient(ellipse,#c79a7722,transparent); }
+.market-reward h3 { margin:14px 0; }
+.market-reward .row,.market-reward .wide { margin-top:20px; }
+.partner-space-form { margin-top:30px; }
+.planner-back { position:fixed;top:16px;left:260px;z-index:10;font-size:12px; }
+.planner-workspace .empty > .brew-mark { font-size:48px;color:var(--accent);margin-bottom:18px; }
+.mobile-section-picker { display:none; }
+.planner-workspace .dialog .primary.wide { margin-top:24px; }
+@media(max-width:1000px) { .ritual-watermark {font-size:110px;margin:0;} .planner-goal-grid {gap:14px;} }
+@media(max-width:760px) {
+ .planner-workspace .content {padding-top:22px;}
+ .mobile-section-picker {display:block;padding:12px 5% 0;}
+ .mobile-section-picker select {font-size:13px;min-height:42px;}
+ .planner-welcome {padding:26px;}
+ .planner-welcome h2 {font-size:32px;}
+ .ritual-watermark {position:absolute;right:-15px;top:25px;opacity:.12;font-size:130px;pointer-events:none;}
+ .planner-welcome > div:first-child {position:relative;z-index:1;}
+ .planner-summary {gap:9px;}
+ .planner-summary button {padding:16px 12px;gap:10px;}
+ .planner-summary .small {font-size:10px;}
+ .planner-summary strong {font-size:29px;}
+ .planner-goal-grid {grid-template-columns:1fr;}
+ .planner-task {padding:20px;}
+ .task-actions button {padding:9px 12px;}
+ .planner-back {position:static;padding:15px 5%;background:var(--surface);width:100%;text-align:left;}
+ .planner-workspace .page-heading h1 {font-size:30px;}
+}
