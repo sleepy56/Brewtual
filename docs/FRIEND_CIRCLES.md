@@ -4,7 +4,7 @@ Brewtual provides two separate kinds of shared space: a two-person partner space
 
 ## Partner connections
 
-Create a partner space from Today before generating a `PAIR-` code. Share it privately with your partner, who joins using their own account.
+Create a partner space from Together before generating a `PAIR-` code. Share it privately with your partner, who joins using their own account.
 
 - A partner space holds exactly two accounts.
 - Codes expire after seven days and are single-use.
@@ -20,7 +20,11 @@ Create a named circle or enter a friend’s `GROUP-` code. You can belong to mul
 - Anyone who possesses a valid group code can join, so share it only with intended members.
 - Only code hashes are stored in the database.
 
-## Tasks, goals, and encouragement
+## Personal tasks and space tokens
+
+Your private planner works independently of circles. Use **Ask for tokens** to share selected work with a connected group for approval. Each circle has its own token balance and reward market. See the [personal planner guide](PERSONAL_PLANNER.md).
+
+## Shared circle goals and encouragement
 
 Add a title and a target number of steps. Use a target of 1 for a single task, or a larger number for a milestone. The owner can log a step or undo one; other members cannot change their progress. Progress cannot exceed the goal’s target.
 

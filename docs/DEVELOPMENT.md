@@ -6,13 +6,14 @@ For a first local run, start with the [README](../README.md#run-locally).
 
 Next.js and TypeScript host the website and `/api/v1` API in one application. React Native and Expo provide the separate Android/iOS client under `mobile/`. Both use the same PostgreSQL database through Prisma. The active server uses ordinary TypeScript services; it has no NestJS runtime or custom Express server.
 
-The website includes the public landing page, partner habits and rewards, friend circles, and an installable phone experience. The separate Expo client retains its partner screens and deliberate fictional demo; the new friend-circle interface is currently on the website.
+The website includes the public landing page, a personal task/Daily/Goal planner, separate partner and group token markets, previous partner habits and rewards, friend circles, and an installable phone experience. The separate Expo client retains its partner screens and deliberate fictional demo; the new friend-circle interface is currently on the website.
 
 | Location | Purpose |
 | --- | --- |
 | `app/page.tsx`, `app/verify-email/page.tsx` | Website entry pages |
 | `src/web/landing.tsx` | Public homepage and interactive sample checklist |
 | `src/web/pair-habits.tsx`, `src/web/client.ts` | Account flow, partner screens, and browser API transport |
+| `src/web/planner.tsx`, `src/server/planner/` | Personal planning, token approvals, per-space markets, and ledgers |
 | `src/web/connections.tsx` | Circle goals, invites, cheers, and milestone promises |
 | `src/web/install-app.tsx`, `app/manifest.ts`, `public/sw.js` | Installation controls, app manifest, and offline fallback |
 | `app/api/v1/[...path]/route.ts` | Next.js Node API entrypoint |
@@ -37,7 +38,7 @@ For browser signup and login locally, use:
 
 The default signup flow needs no SMTP and sends no email. Optional verification and development token mode are described in the [authentication guide](AUTHENTICATION_PLAN.md).
 
-After pulling schema changes, run `npm run db:generate` and `npm run db:migrate`. Friend circles require the additive `20261023170000_friend_circles` migration; an existing database must receive it too. No database reset is needed.
+After pulling schema changes, run `npm run db:generate` and `npm run db:migrate`. Friend circles require `20261023170000_friend_circles`, and personal planning requires `20261023190000_personal_planner`; an existing database must receive it too. No database reset is needed.
 
 ## Running the clients
 
@@ -51,7 +52,7 @@ See the [Expo guide](../mobile/README.md) for native client details and the [dep
 
 | Command | Coverage |
 | --- | --- |
-| `npm test` | Server unit/API tests and browser transport tests |
+| `npm test` | Server unit/API, browser transport, and personal-planner component tests |
 | `npm run typecheck` | Prisma generation, Next.js route types, and TypeScript |
 | `npm run mobile:test` | Expo transport, mapping, calendar, and mutation-failure tests |
 | `npm run mobile:typecheck` | Expo TypeScript checks |
@@ -60,7 +61,7 @@ See the [Expo guide](../mobile/README.md) for native client details and the [dep
 
 The production smoke check starts the actual Next.js server with Lambda-style module restrictions. It checks website pages, API health, auth validation, and website availability during a database outage.
 
-Integration tests require `TEST_DATABASE_URL` pointing to local PostgreSQL. They create and remove an isolated schema, reject remote database URLs, and use fake email for signup, verification, and partner habit/reward flows. They do not access Neon or send real email. Circle service tests cover membership boundaries, goal ownership, expired/consumed codes, reusable group codes, and partner capacity; they do not replace a live multi-account circle integration test.
+Integration tests require `TEST_DATABASE_URL` pointing to local PostgreSQL. They create and remove isolated schemas, reject remote database URLs, and use fictional accounts for signup, verification, and partner habit/reward flows. Planner integration tests also connect a partner and two groups, check separate balances, concurrent awards and spending, private notes, and ledger constraints. They do not access Neon or send real email. Circle service tests additionally cover goal ownership, expired/consumed codes, reusable group codes, and partner capacity.
 
 ## Troubleshooting
 

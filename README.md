@@ -2,17 +2,19 @@
 
 ### Small steps. Stronger together.
 
-Brewtual is a shared space for building better habits with the people who matter to you. Turn everyday intentions into small, steady steps, find encouragement from your partner or friends, and celebrate the progress you make together.
+Brewtual is a personal planner that grows with your people. Organize your task list, build a rhythm with recurring Dailies, and make steady progress toward bigger Goals. Start on your own, then connect a partner or friend group when you want encouragement and shared rewards.
 
 Whether you’re reading more, moving a little each day, or working toward a bigger goal, Brewtual gives you a reason to keep showing up—and someone to share the little wins with.
 
-![Brewtual website preview](docs/landing-preview.png)
+![Brewtual personal planner — example Goals](docs/planner-preview.png)
 
 ## A little accountability. A lot of possibility.
 
-**Build with your person.** Create a private partner space, agree on habits, check in on your progress, and earn tokens toward thoughtful rewards you offer each other.
+**Start with yourself.** Check off one-time tasks, schedule Dailies for the days that suit you, and track longer-term Goals one step at a time. You don’t need a partner to begin.
 
-**Grow with your friends.** Bring multiple people into a friend circle with a shared invite code. Add tasks and goals, follow each other’s progress, and cheer on the wins. Your partner space stays separate from your friend circles.
+**Build with your person.** Connect a partner and use “Ask for tokens” on a task, Daily, or Goal. Once they approve the terms, future completions earn tokens toward thoughtful rewards.
+
+**Grow with your friends.** Bring people into a friend circle with a shared invite code. Share progress, approve token requests, and offer rewards. Partner tokens, Group 1 tokens, Group 2 tokens, and their markets stay separate.
 
 **Give milestones something to look forward to.** Offer a little promise, like coffee when a friend finishes a goal. Friends choose whether to join in, and you arrange the celebration together.
 
@@ -21,8 +23,9 @@ Whether you’re reading more, moving a little each day, or working toward a big
 ## Find your together
 
 1. **Make yourself at home.** Create an account and pick a theme that feels like you.
-2. **Invite your people.** Connect with one partner using a partner code, or bring friends into a circle using a group code.
-3. **Take the next small step.** Set a goal, log your progress, and give someone a little encouragement along the way.
+2. **Find your rhythm.** Add tasks, choose your Daily schedule, and set goals. Start using your planner immediately.
+3. **Invite your people when you’re ready.** Connect a partner or friend circle to unlock that space’s token market.
+4. **Take the next small step.** Set a goal, log your progress, and give someone a little encouragement along the way.
 
 No perfect streak required. Just your pace, your people, and a little progress.
 
@@ -51,6 +54,7 @@ For the separate Expo phone client, see the [mobile setup guide](mobile/README.m
 | --- | --- |
 | [Development](docs/DEVELOPMENT.md) | Project structure, configuration, tests, and troubleshooting |
 | [Deployment and phones](docs/DEPLOYMENT_AND_MOBILE_PLAN.md) | Vercel, database migrations, environment variables, and home-screen installation |
+| [Personal planner and tokens](docs/PERSONAL_PLANNER.md) | Tasks, Dailies, Goals, approvals, and separate reward markets |
 | [Friend circles and invites](docs/FRIEND_CIRCLES.md) | Connection codes, shared goals, cheers, milestone promises, and visibility |
 | [Authentication](docs/AUTHENTICATION_PLAN.md) | Accounts, email verification, sessions, and account administration |
 | [API contract](docs/BACKEND_CONTRACT.md) | Partner, habit, reward, and wallet endpoints |
