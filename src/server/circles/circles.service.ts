@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import type { PrismaService } from '../database/prisma.service';
 import { ConflictError, ForbiddenError, NotFoundError } from '../http/errors';
 const hash = (code: string) => createHash('sha256').update(code).digest('hex');
@@ -41,7 +42,13 @@ export class CirclesService {
         if (invite.creatorId === userId) throw new ConflictError('Share this code with your partner.');
         if (await tx.membership.findUnique({ where: { userId } })) throw new ConflictError('You already have a partner space.');
         if (await tx.membership.count({ where: { pairId: invite.targetId } }) !== 1) throw new ConflictError('Partner space is full.');
-        await tx.membership.create({ data: { pairId: invite.targetId, userId, slot: 2 } });
+        try {
+          await tx.membership.create({ data: { pairId: invite.targetId, userId, slot: 2 } });
+        } catch (error) {
+          if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')
+            throw new ConflictError('You already have a partner space or this space is full.');
+          throw error;
+        }
         await tx.connectionCode.update({ where: { hash: invite.hash }, data: { usedAt: new Date() } });
       }
       return { kind: invite.kind, targetId: invite.targetId };

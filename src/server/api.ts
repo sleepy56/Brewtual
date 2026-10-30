@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { HttpError, BadRequestError, ForbiddenError, NotFoundError } from './http/errors';
 import type { Services } from './services';
@@ -131,7 +132,30 @@ export function createApi(services: Services) {
       if (method === 'GET' && endpoint === '/health') return json({ status: 'ok' });
       if (method === 'GET' && endpoint === '/health/ready') {
         try {
-          await services.db.$queryRaw`SELECT 1`;
+          const result = await services.db.$queryRaw<Array<{ ready: boolean }>>`
+            SELECT
+              NOT EXISTS (
+                SELECT 1 FROM unnest(ARRAY[
+                  'Circle', 'CircleMember', 'CircleGoal', 'CircleCheer', 'CircleOffer',
+                  'CirclePledge', 'ConnectionCode', 'PersonalTask', 'TaskCompletion',
+                  'TaskTokenProposal', 'TaskAward', 'CircleTokenEntry', 'SpaceReward', 'SpaceRedemption'
+                ]) AS required(name)
+                WHERE NOT EXISTS (SELECT 1 FROM information_schema.tables t
+                  WHERE t.table_schema = current_schema() AND t.table_name = required.name)
+              ) AND NOT EXISTS (
+                SELECT 1 FROM (VALUES
+                  ('PersonalTaskKind', 'TODO'), ('PersonalTaskKind', 'DAILY'), ('PersonalTaskKind', 'GOAL'),
+                  ('TaskSpaceKind', 'PAIR'), ('TaskSpaceKind', 'GROUP'),
+                  ('GoalStatus', 'PENDING'), ('GoalStatus', 'ACTIVE'), ('GoalStatus', 'REJECTED'),
+                  ('RewardStatus', 'PENDING'), ('RewardStatus', 'ACTIVE'), ('RewardStatus', 'REJECTED'),
+                  ('RedemptionStatus', 'REQUESTED'), ('RedemptionStatus', 'FULFILLED'),
+                  ('LedgerReason', 'WEEKLY_AWARD'), ('LedgerReason', 'REWARD_REDEMPTION'), ('LedgerReason', 'TASK_AWARD')
+                ) AS required(type_name, value)
+                WHERE NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+                  JOIN pg_enum e ON e.enumtypid = t.oid
+                  WHERE n.nspname = current_schema() AND t.typname = required.type_name AND e.enumlabel = required.value)
+              ) AS ready`;
+          if (!result[0]?.ready) throw new Error('Schema unavailable');
         } catch {
           throw new HttpError(503, 'Database is unavailable');
         }
@@ -345,7 +369,14 @@ export function createApi(services: Services) {
       throw new NotFoundError('Route not found');
     } catch (error) {
       const status = error instanceof HttpError ? error.status : 500;
-      if (status >= 500) console.error('API request failed', { requestId, path, status });
+      if (status >= 500) {
+        const prismaError = error instanceof Prisma.PrismaClientKnownRequestError;
+        console.error('API request failed', {
+          requestId, path, status,
+          errorType: prismaError ? 'PrismaClientKnownRequestError' : error instanceof Error ? 'Error' : 'unknown',
+          ...(prismaError && /^P\d{4}$/.test(error.code) ? { code: error.code } : {}),
+        });
+      }
       return json(
         {
           statusCode: status,

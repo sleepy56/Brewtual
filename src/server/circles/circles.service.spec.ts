@@ -1,5 +1,6 @@
 import { CirclesService } from './circles.service';
 import { ForbiddenError, ConflictError, NotFoundError } from '../http/errors';
+import { Prisma } from '@prisma/client';
 describe('friend circles and connection codes', () => {
  const userId='alice', circleId='circle';
  let db:any, service:CirclesService;
@@ -47,5 +48,12 @@ describe('friend circles and connection codes', () => {
   db.membership.findUnique.mockResolvedValue(null);db.membership.count.mockResolvedValue(2);
   await expect(service.join(userId,'PAIR-test')).rejects.toBeInstanceOf(ConflictError);
   expect(db.membership.create).not.toHaveBeenCalled();
+ });
+ it('reports a concurrent partner membership conflict without consuming the code',async()=>{
+  db.connectionCode.findUnique.mockResolvedValue({kind:'partner',creatorId:'bob',targetId:'pair',expiresAt:new Date(Date.now()+10000)});
+  db.membership.findUnique.mockResolvedValue(null);db.membership.count.mockResolvedValue(1);
+  db.membership.create.mockRejectedValue(new Prisma.PrismaClientKnownRequestError('unique conflict',{code:'P2002',clientVersion:'test'}));
+  await expect(service.join(userId,'PAIR-test')).rejects.toBeInstanceOf(ConflictError);
+  expect(db.connectionCode.update).not.toHaveBeenCalled();
  });
 });

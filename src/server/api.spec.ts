@@ -1,6 +1,7 @@
 import { createApi } from './api';
 import type { Services } from './services';
 import { UnauthorizedError } from './http/errors';
+import { Prisma } from '@prisma/client';
 
 describe('Next API contract', () => {
   let api: ReturnType<typeof createApi>;
@@ -27,7 +28,7 @@ describe('Next API contract', () => {
     process.env.NODE_ENV = 'production';
     process.env.CORS_ORIGINS = 'https://app.example.com';
     services = {
-      db: { $queryRaw: jest.fn().mockResolvedValue([]) },
+      db: { $queryRaw: jest.fn().mockResolvedValue([{ ready: true }]) },
       identity: {
         authenticate: jest.fn().mockRejectedValue(new UnauthorizedError('Bearer token required')),
       },
@@ -56,13 +57,27 @@ describe('Next API contract', () => {
   it('serves health independently of authentication and reports database unavailability', async () => {
     expect(await (await request('/health')).json()).toEqual({ status: 'ok' });
     expect((await request('/health/ready')).status).toBe(200);
-    services.db.$queryRaw.mockRejectedValue(new Error('private connection credentials'));
+    services.db.$queryRaw.mockResolvedValueOnce([{ ready: false }]);
     const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+    expect((await request('/health/ready')).status).toBe(503);
+    services.db.$queryRaw.mockRejectedValue(new Error('private connection credentials'));
     const response = await request('/health/ready');
     expect(response.status).toBe(503);
     expect(await response.text()).not.toContain('private connection');
     log.mockRestore();
     expect(services.identity.authenticate).not.toHaveBeenCalled();
+  });
+  it('logs safe Prisma diagnostics without error messages or metadata', async () => {
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+    services.identity.authenticate.mockRejectedValue(new Prisma.PrismaClientKnownRequestError(
+      'private credentials', { code: 'P2021', clientVersion: 'test', meta: { table: 'private table' } },
+    ));
+    const response = await request('/planner/tasks');
+    expect(response.status).toBe(500);
+    expect(log).toHaveBeenCalledWith('API request failed', expect.objectContaining({ errorType: 'PrismaClientKnownRequestError', code: 'P2021' }));
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(/private credentials|private table/);
+    expect(await response.text()).not.toMatch(/private credentials|private table|P2021/);
+    log.mockRestore();
   });
   it('protects habit data, checks UUIDs, rejects unknown body fields and validates timezones', async () => {
     expect((await request('/goals')).status).toBe(401);

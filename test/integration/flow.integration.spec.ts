@@ -83,6 +83,22 @@ describe('two-person API flow against PostgreSQL', () => {
     await post(0, '/pairs').send({ name: 'Private pair', timezone: 'Asia/Calcutta', admin: true }).expect(400);
   });
 
+  it('reports an incomplete planner schema as not ready', async () => {
+    await request(server).get('/api/v1/health/ready').expect(200, { status: 'ready' });
+    await db.$executeRaw`ALTER TABLE "PersonalTask" RENAME TO "PersonalTask_readiness_test"`;
+    try {
+      await request(server).get('/api/v1/health/ready').expect(503);
+    } finally {
+      await db.$executeRaw`ALTER TABLE "PersonalTask_readiness_test" RENAME TO "PersonalTask"`;
+    }
+    await request(server).get('/api/v1/health/ready').expect(200, { status: 'ready' });
+  });
+
+  it('loads planner tasks and spaces before joining a pair', async () => {
+    expect((await get(0, '/planner/tasks').expect(200)).body).toEqual([]);
+    expect((await get(0, '/planner/spaces').expect(200)).body).toEqual([]);
+  });
+
   it('pairs only the invited email and prevents duplicate membership and used invites', async () => {
     pairId = (await post(0, '/pairs').send({ name: 'Private pair', timezone: 'Asia/Calcutta' }).expect(201)).body.id;
     await post(0, '/pairs').send({ name: 'Duplicate', timezone: 'UTC' }).expect(409);
@@ -93,6 +109,10 @@ describe('two-person API flow against PostgreSQL', () => {
     await post(0, '/pairs/invites').send({ email: emails[2] }).expect(409);
     await post(2, '/pairs').send({ name: 'Other pair', timezone: 'UTC' }).expect(201);
     expect(await db.membership.count({ where: { pairId } })).toBe(2);
+    await get(0, '/planner/tasks').expect(200);
+    expect((await get(0, '/planner/spaces').expect(200)).body).toEqual([
+      expect.objectContaining({ scopeKind: 'PAIR', scopeId: pairId, connected: true }),
+    ]);
   });
 
   it('requires partner approval and scopes every goal to its pair', async () => {

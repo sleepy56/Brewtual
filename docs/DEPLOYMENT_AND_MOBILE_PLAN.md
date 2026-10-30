@@ -64,7 +64,7 @@ A separate `404` needs its full request URL to diagnose. It does not explain an 
 1. Open `/`: the public Brewtual landing page should load. Use Log in to open the account screen.
 2. Open `/verify-email`: the verification page should load without consuming a token on GET.
 3. Open `/api/v1/health`: expect 200 and `{"status":"ok"}`.
-4. Open `/api/v1/health/ready`: expect 200 and `{"status":"ready"}`. A 503 here indicates configuration or database connectivity trouble; it should not crash the website.
+4. Open `/api/v1/health/ready`: expect 200 and `{"status":"ready"}`. A 503 here indicates configuration, database connectivity, or missing planner/circle schema trouble; it should not crash the website.
 5. Create an account with an email and password, then sign in immediately. Confirm that Tasks, Dailies, and Goals work with no partner; token markets should require at least two members. Test pair access and one habit mutation. Also test a partner code and a group code with separate accounts, circle goal ownership, cheering, and voluntary milestone pledges. Verification is required only if explicitly enabled.
 
 Local `npm run test:vercel` builds and starts the production server with `require(esm)` disabled, checks the pages and API, and verifies the website survives an unavailable database. `npm run test:integration` covers real local PostgreSQL transactions using isolated schemas and fake email. Neither check touches Neon or sends email.
