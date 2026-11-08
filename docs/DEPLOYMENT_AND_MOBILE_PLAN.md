@@ -1,6 +1,6 @@
 # Brewtual deployment and phone installation
 
-The repository root is one Next.js app, deployed as one Vercel project. The website uses ordinary React/TypeScript and the API uses Next.js Node route handlers. The existing Expo phone app remains in `mobile/` and calls the same `/api/v1` endpoints. Neon data, table names, passwords, session signing settings and the Prisma migration history are preserved. The framework migration itself did not require a database reset. The current friend-circle features add a new migration; apply it to existing databases before using Together.
+The repository root is one Next.js app, deployed as one Vercel project. The website uses ordinary React/TypeScript and the API uses Next.js Node route handlers. The existing Expo phone app remains in `mobile/` and calls the same `/api/v1` endpoints. Neon data, table names, passwords, session signing settings and the Prisma migration history are preserved. Vercel applies pending migrations before building the app; no database reset is required.
 
 ## Vercel settings
 
@@ -10,7 +10,7 @@ The repository root is one Next.js app, deployed as one Vercel project. The webs
 | Framework Preset | Next.js |
 | Node.js | 24.x |
 | Install Command | `npm ci --include=dev` |
-| Build Command | `npm run build` |
+| Build Command | `npm run build:vercel` |
 | Output Directory | Leave override disabled/default (`.next` is managed by Next.js) |
 | Function region | Singapore (`sin1`), set in `vercel.json` |
 
@@ -36,9 +36,11 @@ Set these in Vercel Environment Variables for Production. Keep secrets out of `N
 
 SMTP is optional for signup and login. With `REQUIRE_EMAIL_VERIFICATION` unset or `false`, accounts are created immediately and no email is sent, even if SMTP variables exist. Once email delivery is ready, configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`, then set `REQUIRE_EMAIL_VERIFICATION=true` and redeploy. Unverified accounts will then need to confirm their email before using the app. [Authentication details](AUTHENTICATION_PLAN.md).
 
-Keep `AUTH_MODE=local`, `LOCAL_AUTH_SECRET` and `TEST_DATABASE_URL` out of production. Next.js manages `NODE_ENV` and `PORT`. Run `npm run db:migrate` with the configured direct database URL before releasing schema changes, including the additive `20261023170000_friend_circles` and `20261023190000_personal_planner` migrations. Apply it to existing databases as well as new ones; it preserves partner records. Builds only generate the Prisma client and Next.js output; they do not apply migrations or send email.
+Keep `AUTH_MODE=local`, `LOCAL_AUTH_SECRET` and `TEST_DATABASE_URL` out of production. Next.js manages `NODE_ENV` and `PORT`. `npm run build:vercel` runs `prisma migrate deploy` through `npm run db:migrate`, then generates the Prisma client and builds Next.js. Both database URLs must identify the same database and schema; the direct URL needs migration permissions and must be available during the build. A failed migration stops the build. Pending migrations include friend circles, personal planning, shared notes, and `20261108000000_task_sections`, which adds `TaskShare`. Existing partner records and tasks are preserved. Ordinary `npm run build` remains available without applying database changes. Neither build command sends email.
 
-For preview signup tests, use preview-specific `APP_WEB_URL` and `CORS_ORIGINS`. Browser refresh cookies remain HttpOnly, SameSite Strict and Secure in production; web and API share one origin.
+Give Preview deployments their own database and matching pooled/direct URLs so preview migrations cannot change production data. For preview signup tests, use preview-specific `APP_WEB_URL` and `CORS_ORIGINS`. Browser refresh cookies remain HttpOnly, SameSite Strict and Secure in production; web and API share one origin.
+
+If `/api/v1/planner/tasks` returns 500 after a schema release, check `/api/v1/health/ready` and redeploy using `npm run build:vercel`. Confirm that the build successfully applied all migrations and readiness returns 200 before retrying tasks. If the build fails to connect, check the saved database URLs and database availability. Do not reset the database or use `prisma db push` to repair a production deployment.
 
 ## Fix sign-in after changing the domain
 

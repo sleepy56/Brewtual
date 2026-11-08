@@ -138,7 +138,7 @@ export function createApi(services: Services) {
                 SELECT 1 FROM unnest(ARRAY[
                   'Circle', 'CircleMember', 'CircleGoal', 'CircleCheer', 'CircleOffer',
                   'CirclePledge', 'ConnectionCode', 'PersonalTask', 'TaskCompletion',
-                  'TaskTokenProposal', 'TaskAward', 'CircleTokenEntry', 'SpaceReward', 'SpaceRedemption', 'SharedNote'
+                  'TaskShare', 'TaskTokenProposal', 'TaskAward', 'CircleTokenEntry', 'SpaceReward', 'SpaceRedemption', 'SharedNote'
                 ]) AS required(name)
                 WHERE NOT EXISTS (SELECT 1 FROM information_schema.tables t
                   WHERE t.table_schema = current_schema() AND t.table_name = required.name)

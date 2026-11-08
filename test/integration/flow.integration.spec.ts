@@ -99,6 +99,23 @@ describe('two-person API flow against PostgreSQL', () => {
     expect((await get(0, '/planner/spaces').expect(200)).body).toEqual([]);
   });
 
+  it('reports missing task sharing and resumes loading when restored without losing tasks', async () => {
+    const task = (await post(0, '/planner/tasks').send({ title: 'Keep this task', kind: 'TODO', timezone: 'UTC' }).expect(201)).body;
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+    await db.$executeRaw`ALTER TABLE "TaskShare" RENAME TO "TaskShare_readiness_test"`;
+    try {
+      const failed = await get(0, '/planner/tasks').expect(500);
+      expect(failed.body.message).toBe('An unexpected error occurred');
+      expect(log).toHaveBeenCalledWith('API request failed', expect.objectContaining({ requestId: failed.body.requestId, code: 'P2021' }));
+      await request(server).get('/api/v1/health/ready').expect(503);
+    } finally {
+      await db.$executeRaw`ALTER TABLE "TaskShare_readiness_test" RENAME TO "TaskShare"`;
+      log.mockRestore();
+    }
+    await request(server).get('/api/v1/health/ready').expect(200, { status: 'ready' });
+    expect((await get(0, '/planner/tasks').expect(200)).body).toEqual([expect.objectContaining({ id: task.id, title: task.title })]);
+  });
+
   it('pairs only the invited email and prevents duplicate membership and used invites', async () => {
     pairId = (await post(0, '/pairs').send({ name: 'Private pair', timezone: 'Asia/Calcutta' }).expect(201)).body.id;
     await post(0, '/pairs').send({ name: 'Duplicate', timezone: 'UTC' }).expect(409);

@@ -16,7 +16,7 @@
     "mobile:typecheck": "npm run typecheck --workspace mobile",
     "mobile:export": "npm run export --workspace mobile",
     "build": "prisma generate && next build",
-    "build:vercel": "npm run build",
+    "build:vercel": "npm run db:migrate && npm run build",
     "test:vercel": "npm run build && node --test test/vercel-routing.test.cjs",
     "test": "node scripts/run-tests.cjs --config jest.config.cjs && node --test test/web-client.test.cjs test/web-planner.test.cjs",
     "test:integration": "node scripts/run-tests.cjs --config jest.integration.config.cjs",

@@ -36,4 +36,5 @@ jobs:
       - run: npm run test:integration
       - run: npm run mobile:typecheck
       - run: npm run mobile:test
-      - run: npm run test:vercel
+      - run: npm run build:vercel
+      - run: node --test test/vercel-routing.test.cjs

@@ -38,7 +38,7 @@ For browser signup and login locally, use:
 
 The default signup flow needs no SMTP and sends no email. Optional verification and development token mode are described in the [authentication guide](AUTHENTICATION_PLAN.md).
 
-After pulling schema changes, run `npm run db:generate` and `npm run db:migrate`. Friend circles require `20261023170000_friend_circles`, and personal planning requires `20261023190000_personal_planner`; an existing database must receive it too. No database reset is needed.
+After pulling schema changes, run `npm run db:generate` and `npm run db:migrate`. Existing databases need all pending migrations, including `20261108000000_task_sections` for task sharing. No database reset is needed. Vercel uses `npm run build:vercel` to apply migrations before building; `npm run build` leaves the database unchanged.
 
 ## Running the clients
 
