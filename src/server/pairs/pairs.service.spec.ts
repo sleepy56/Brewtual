@@ -87,8 +87,9 @@ describe('PairsService invite handling', () => {
     const tx = {
       invite: { findUnique: jest.fn().mockResolvedValue(invite) },
       membership: {
-        findUnique: jest.fn().mockResolvedValue({ id: 'existing' }),
-        count: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue({ id: 'existing', pairId: 'another-pair' }),
+        findMany: jest.fn().mockResolvedValue([{ slot: 1 }]),
+        count: jest.fn().mockResolvedValue(2),
         create: jest.fn(),
       },
     };

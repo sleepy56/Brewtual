@@ -403,3 +403,17 @@ model SpaceRedemption {
   spender User @relation(fields: [spenderId], references: [id], onDelete: Restrict)
   @@unique([spenderId, idempotencyKey])
 }
+
+model SharedNote {
+  id String @id @default(uuid()) @db.Uuid
+  scopeKind TaskSpaceKind
+  scopeId String @db.Uuid
+  title String
+  content Json
+  version Int @default(1)
+  createdById String @db.Uuid
+  updatedById String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  @@index([scopeKind, scopeId, updatedAt])
+}

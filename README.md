@@ -16,9 +16,11 @@ Whether you’re reading more, moving a little each day, or working toward a big
 
 **Grow with your friends.** Bring people into a friend circle with a shared invite code. Share progress, approve token requests, and offer rewards. Partner tokens, Group 1 tokens, Group 2 tokens, and their markets stay separate.
 
+**Think together.** Open Shared notes, choose a partner or group notebook, and create a note. Every note belongs to that space automatically, and all current and future members can edit it. Use headings, formatting, links, lists, checklists, quotes, and code blocks. Changes save automatically; overlapping edits open a review instead of overwriting someone else’s work. See [Shared notes](docs/SHARED_NOTES.md).
+
 **Give milestones something to look forward to.** Offer a little promise, like coffee when a friend finishes a goal. Friends choose whether to join in, and you arrange the celebration together.
 
-**Make the space your own.** Choose black Midnight with cyan and warm brown accents, bright Ocean, warm Dawn, or Aurora. The website adapts to desktop and phone screens, and you can add it to your phone’s home screen.
+**Make the space your own.** Choose Solaris, with dark glass cards and violet/cyan glows, or Cozy, with warm cream, coffee, and rose tones. Switch using the theme name in the app header or the choices in Settings; your browser remembers the choice. The website adapts to desktop and phone screens, and you can add it to your phone’s home screen.
 
 ## Find your together
 

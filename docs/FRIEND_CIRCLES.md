@@ -6,6 +6,10 @@ Brewtual provides two separate kinds of shared space: a two-person partner space
 
 Create a partner space from Together before generating a `PAIR-` code. Share it privately with your partner, who joins using their own account.
 
+If both people created a waiting space, either person can enter the other’s code. The two waiting spaces become one connection; private personal tasks remain private, and shared notes, pending partner habits, and offers carry into the joined space. Previously active token terms require the new partner’s approval. Existing wallet history is never moved or rewritten: a waiting space with token history must invite the other person into that space instead.
+
+Together shows **Connected with** and the linked account’s email when setup is complete. Re-entering a code for your existing partner succeeds without creating another connection. A space containing two people cannot be replaced through an invite code.
+
 - A partner space holds exactly two accounts.
 - Codes expire after seven days and are single-use.
 - An account can belong to only one partner space.

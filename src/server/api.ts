@@ -138,7 +138,7 @@ export function createApi(services: Services) {
                 SELECT 1 FROM unnest(ARRAY[
                   'Circle', 'CircleMember', 'CircleGoal', 'CircleCheer', 'CircleOffer',
                   'CirclePledge', 'ConnectionCode', 'PersonalTask', 'TaskCompletion',
-                  'TaskTokenProposal', 'TaskAward', 'CircleTokenEntry', 'SpaceReward', 'SpaceRedemption'
+                  'TaskTokenProposal', 'TaskAward', 'CircleTokenEntry', 'SpaceReward', 'SpaceRedemption', 'SharedNote'
                 ]) AS required(name)
                 WHERE NOT EXISTS (SELECT 1 FROM information_schema.tables t
                   WHERE t.table_schema = current_schema() AND t.table_name = required.name)
@@ -205,6 +205,19 @@ export function createApi(services: Services) {
 
       if (endpoint.startsWith('/auth/')) throw new NotFoundError('Route not found');
       const user = await services.identity.authenticate(request.headers.get('authorization'));
+      if (method === 'GET' && endpoint === '/notes') {
+        const parsed = schemas.scopeSchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
+        if (!parsed.success) throw new BadRequestError('Choose a valid partner or group space.');
+        return json(await services.notes.list(user.id, parsed.data));
+      }
+      if (method === 'POST' && endpoint === '/notes') return json(await services.notes.create(user.id, await body(request, schemas.scopeSchema)));
+      const noteRoute = /^\/notes\/([^/]+)(\/edit)?$/.exec(endpoint);
+      if (noteRoute && ((method === 'GET' && !noteRoute[2]) || (method === 'POST' && noteRoute[2]))) {
+        const id = z.uuid().safeParse(noteRoute[1]);
+        if (!id.success) throw new BadRequestError('Use a valid note ID.');
+        if (method === 'GET') return json(await services.notes.get(user.id, id.data));
+        return json(await services.notes.edit(user.id, id.data, await body(request, schemas.editNoteSchema)), 200);
+      }
       if (method === 'GET' && endpoint === '/planner/tasks') return json(await services.planner.tasks(user.id));
       if (method === 'GET' && endpoint === '/planner/spaces') {
         try {

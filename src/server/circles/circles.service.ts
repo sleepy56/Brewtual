@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import type { PrismaService } from '../database/prisma.service';
 import { ConflictError, ForbiddenError, NotFoundError } from '../http/errors';
+import { joinPartnerSpace } from '../pairs/join-partner-space';
 const hash = (code: string) => createHash('sha256').update(code).digest('hex');
 export class CirclesService {
   constructor(private db: PrismaService) {}
@@ -34,16 +35,21 @@ export class CirclesService {
   async join(userId: string, code: string) {
     return this.db.runInTransaction(async tx => {
       const invite = await tx.connectionCode.findUnique({ where: { hash: hash(code) } });
+      if (invite?.kind === 'partner' && invite.creatorId !== userId) {
+        const [current, creator] = await Promise.all([
+          tx.membership.findUnique({ where: { userId } }),
+          tx.membership.findUnique({ where: { userId: invite.creatorId } }),
+        ]);
+        if (current && creator && current.pairId === creator.pairId) return { kind: invite.kind, targetId: current.pairId };
+      }
       if (!invite || invite.usedAt || invite.expiresAt <= new Date()) throw new NotFoundError('Code is invalid or expired.');
       if (invite.kind === 'group') {
         if (!await tx.circle.findUnique({ where: { id: invite.targetId } })) throw new NotFoundError('Circle no longer exists.');
         await tx.circleMember.upsert({ where: { circleId_userId: { circleId: invite.targetId, userId } }, create: { circleId: invite.targetId, userId }, update: {} });
       } else {
         if (invite.creatorId === userId) throw new ConflictError('Share this code with your partner.');
-        if (await tx.membership.findUnique({ where: { userId } })) throw new ConflictError('You already have a partner space.');
-        if (await tx.membership.count({ where: { pairId: invite.targetId } }) !== 1) throw new ConflictError('Partner space is full.');
         try {
-          await tx.membership.create({ data: { pairId: invite.targetId, userId, slot: 2 } });
+          await joinPartnerSpace(tx, userId, invite.targetId);
         } catch (error) {
           if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')
             throw new ConflictError('You already have a partner space or this space is full.');

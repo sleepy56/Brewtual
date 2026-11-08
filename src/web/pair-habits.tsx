@@ -17,11 +17,13 @@ import { BrewtualMark } from './brewtual-mark';
 import { Landing } from './landing';
 import { Connections } from './connections';
 import { InstallApp } from './install-app';
+import { ThemePicker } from './appearance';
+import { AppIcon } from './app-icon';
 import type { Goal, Ledger, Pair, Redemption, Reward } from './types';
 import { addLocalDays, localDate, localWeekday, weekStart } from '../server/domain/calendar';
 
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const themes = ['midnight', 'dawn', 'plum', 'ocean'];
+const themes = ['midnight', 'cozy'];
 type Tab = 'today' | 'goals' | 'rewards' | 'activity' | 'settings' | 'together';
 const message = (error: unknown) =>
   error instanceof Error ? error.message : 'Something went wrong. Please try again.';
@@ -86,26 +88,30 @@ export default function PairHabits({ verify = false }: { verify?: boolean }) {
     try {
       await signOut();
     } catch (reason) {
-      setError(`Sign-out could not reach the server. ${message(reason)}`);
-    } finally {
-      setAccount(null);
-      setShowLegacy(false);
+      if (!(reason instanceof ApiError) || reason.status !== 401) {
+        setError(`Sign-out could not be confirmed. Check your connection and try again. ${message(reason)}`);
+        return;
+      }
     }
+    setAccount(null);
+    setShowLegacy(false);
+    setError('');
   }
   return (
     <div className="app" data-theme={theme}>
       <InstallApp />
+      {account && error && <div className="account-notice notice error" role="alert">{error}<button className="text-button" onClick={() => setError('')}>Dismiss</button></div>}
       {!ready ? (
         <main className="center-page">
           <p role="status">Opening your shared space…</p>
         </main>
       ) : account ? (
-        showLegacy ? <><button className="text-button planner-back" onClick={() => setShowLegacy(false)}>← Back to my planner</button><Workspace key={account.id} account={account} logout={logout} theme={theme} setTheme={changeTheme} /></> :
+        showLegacy ? <Workspace key={account.id} account={account} logout={logout} theme={theme} setTheme={changeTheme} openPlanner={() => setShowLegacy(false)} /> :
         <Planner key={account.id} account={account} logout={logout} theme={theme} setTheme={changeTheme} openLegacy={() => setShowLegacy(true)} />
       ) : !showAuth ? (
         <Landing enter={() => setShowAuth(true)} theme={theme} setTheme={changeTheme} />
       ) : (
-        <><button className="back-home text-button" onClick={() => setShowAuth(false)}>← Back to the beginning</button><Auth
+        <><div className="auth-navigation"><button className="text-button" onClick={() => setShowAuth(false)}>← Back to the beginning</button><ThemePicker theme={theme} setTheme={changeTheme} compact/></div><Auth
           verify={verify}
           onLogin={(user) => {
             setAccount(user);
@@ -326,11 +332,13 @@ function Workspace({
   logout,
   theme,
   setTheme,
+  openPlanner,
 }: {
   account: Account;
   logout: () => Promise<void>;
   theme: string;
   setTheme: (value: string) => void;
+  openPlanner: () => void;
 }) {
   const [tab, setTab] = useState<Tab>('today');
   const [pair, setPair] = useState<Pair | null>(null);
@@ -471,7 +479,7 @@ function Workspace({
     });
   }
   return (
-    <div className="workspace">
+    <div className="workspace partner-workspace">
       <aside className="sidebar">
         <a href="/" className="brand">
           <BrewtualMark /> <span>brewtual</span>
@@ -485,7 +493,7 @@ function Workspace({
               className={tab === item.id ? 'active' : ''}
               onClick={() => setTab(item.id)}
             >
-              <span aria-hidden="true">{item.icon}</span>
+              <span aria-hidden="true"><AppIcon name={item.id === 'rewards' ? 'market' : item.id}/></span>
               {item.title}
               {item.id === 'goals' && approvals.length > 0 && (
                 <span className="badge">{approvals.length}</span>
@@ -500,9 +508,7 @@ function Workspace({
       </aside>
       <div className="main-column">
         <header className="topbar">
-          <a href="/" className="brand">
-            <BrewtualMark /> <span>brewtual</span>
-          </a>
+          <button className="subtle return-planner" onClick={openPlanner}>← My planner</button>
           <div className="row">
             <button className="subtle quick-invite" onClick={() => setTab('together')}>＋ Invite / Join</button>
             <span className="token-pill">✧ {balance} tokens</span>
@@ -531,7 +537,7 @@ function Workspace({
           {notice && <Notice kind="success">{notice}</Notice>}
           {tab === 'together' ? (
             <>
-              <Connections userId={account.id} pairId={pair?.pair.id} reload={refresh} />
+              <Connections userId={account.id} pairId={pair?.pair.id} partnerEmail={pair?.members.find(member => member.user.id !== account.id)?.user.email} reload={refresh} />
               {loaded && (!pair || pair.members.length < 2) && (
                 <PairSetup pair={pair} busy={busy || stale} run={mutate} refresh={() => refresh().catch(() => {})} />
               )}
@@ -816,17 +822,8 @@ function Workspace({
           {tab === 'settings' && (
             <section className="card settings">
               <h2>Your preferences</h2>
-              <div className="theme-tiles settings-themes">{themes.map(value => <button key={value} className={`theme-tile tile-${value} ${theme === value ? 'chosen' : ''}`} aria-pressed={theme === value} onClick={() => setTheme(value)}><span className="theme-mountains"/><span>{value === 'plum' ? 'Aurora' : value[0].toUpperCase() + value.slice(1)} {theme === value ? '✓' : ''}</span></button>)}</div>
+              <ThemePicker theme={theme} setTheme={setTheme}/>
               <button className="subtle" onClick={() => setTab('together')}>＋ Invite someone or join a space</button>
-              <Field label="Color theme">
-                <select value={theme} onChange={(event) => setTheme(event.target.value)}>
-                  {themes.map((value) => (
-                    <option key={value} value={value}>
-                      {value[0].toUpperCase() + value.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
               <p className="muted">{account.email}</p>
               {pair && (
                 <p>
@@ -846,7 +843,7 @@ function Workspace({
               aria-current={tab === item.id ? 'page' : undefined}
               onClick={() => setTab(item.id)}
             >
-              <span aria-hidden="true">{item.icon}</span>
+              <span aria-hidden="true"><AppIcon name={item.id === 'rewards' ? 'market' : item.id}/></span>
               {item.title}
             </button>
           ))}
@@ -1129,6 +1126,7 @@ function Dialog({
   useEffect(() => {
     const dialog = ref.current!;
     dialog.showModal();
+    dialog.querySelector<HTMLElement>('input, textarea, select')?.focus();
     return () => dialog.close();
   }, []);
   return (

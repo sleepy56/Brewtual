@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { PairAccessService } from './pair-access.service';
+import { joinPartnerSpace } from './join-partner-space';
 
 const INVITE_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
@@ -130,22 +131,7 @@ export class PairsService {
           throw new ConflictError('You cannot accept your own invite');
         }
 
-        const existingMembership = await tx.membership.findUnique({
-          where: { userId: user.id },
-          select: { id: true },
-        });
-        if (existingMembership) {
-          throw new ConflictError('You already belong to a pair');
-        }
-        const members = await tx.membership.count({
-          where: { pairId: invite.pairId },
-        });
-        if (members !== 1) throw new ConflictError('Pair has no open member slot');
-
-        const membership = await tx.membership.create({
-          data: { pairId: invite.pairId, userId: user.id, slot: 2 },
-          include: { pair: true },
-        });
+        const membership = await joinPartnerSpace(tx, user.id, invite.pairId);
         const updated = await tx.invite.updateMany({
           where: { id: invite.id, acceptedAt: null, expiresAt: { gt: now } },
           data: { acceptedAt: now },

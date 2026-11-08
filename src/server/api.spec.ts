@@ -1,6 +1,6 @@
 import { createApi } from './api';
 import type { Services } from './services';
-import { UnauthorizedError } from './http/errors';
+import { ConflictError, UnauthorizedError } from './http/errors';
 import { Prisma } from '@prisma/client';
 
 describe('Next API contract', () => {
@@ -53,6 +53,25 @@ describe('Next API contract', () => {
   });
   afterAll(() => {
     process.env = env;
+  });
+  it('authenticates notebooks, validates documents and exposes edit conflicts as 409', async () => {
+    const id = '11111111-1111-4111-8111-111111111111';
+    const scope = { scopeKind: 'PAIR', scopeId: id };
+    const content = { type: 'doc', content: [{ type: 'paragraph' }] };
+    expect((await request(`/notes?scopeKind=PAIR&scopeId=${id}`)).status).toBe(401);
+    services.identity.authenticate.mockResolvedValue({ id: 'alice' });
+    services.notes = { list: jest.fn().mockResolvedValue([]), create: jest.fn().mockResolvedValue({ id }), get: jest.fn().mockResolvedValue({ id, content }), edit: jest.fn().mockResolvedValue({ id, version: 2 }) };
+    expect((await request(`/notes?scopeKind=PAIR&scopeId=${id}`)).status).toBe(200);
+    expect(services.notes.list).toHaveBeenCalledWith('alice', scope);
+    expect((await request('/notes', scope)).status).toBe(201);
+    expect((await request(`/notes/${id}`)).status).toBe(200);
+    expect((await request(`/notes/${id}/edit`, { title: 'Together', content, version: 1 })).status).toBe(200);
+    expect((await request(`/notes/${id}/edit`, { title: 'Invalid', content: { type: 'script' }, version: 1 })).status).toBe(400);
+    expect((await request('/notes/not-a-uuid')).status).toBe(400);
+    expect((await request('/notes?scopeKind=GROUP&scopeId=invalid')).status).toBe(400);
+    expect((await request('/notes', { ...scope, userId: 'bob' })).status).toBe(400);
+    services.notes.edit.mockRejectedValue(new ConflictError('Newer version'));
+    expect((await request(`/notes/${id}/edit`, { title: 'Together', content, version: 1 })).status).toBe(409);
   });
   it('serves health independently of authentication and reports database unavailability', async () => {
     expect(await (await request('/health')).json()).toEqual({ status: 'ok' });

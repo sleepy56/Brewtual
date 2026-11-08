@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { parseNoteDocument } from '../shared/note-document';
 
 const client = z.enum(['web', 'native']);
 export const loginSchema = z.strictObject({
@@ -81,3 +82,12 @@ export const decisionSchema = z.strictObject({ approve: z.boolean() });
 export type CreatePersonalTask = z.infer<typeof personalTaskSchema>;
 export type EditPersonalTask = z.infer<typeof personalTaskEditSchema>;
 export type Space = z.infer<typeof scopeSchema>;
+export const editNoteSchema = z.strictObject({
+  title: z.string().trim().min(1).max(160),
+  content: z.unknown().transform((value, ctx) => {
+    try { return parseNoteDocument(value); }
+    catch { ctx.addIssue({ code: 'custom', message: 'Use valid note blocks and safe links; keep the note under 48,000 characters.' }); return z.NEVER; }
+  }),
+  version: z.number().int().min(1).max(2147483646),
+});
+export type EditNote = z.infer<typeof editNoteSchema>;

@@ -45,13 +45,13 @@ describe('friend circles and connection codes', () => {
  });
  it('prevents a third person joining a partner space',async()=>{
   db.connectionCode.findUnique.mockResolvedValue({kind:'partner',creatorId:'bob',targetId:'pair',expiresAt:new Date(Date.now()+10000)});
-  db.membership.findUnique.mockResolvedValue(null);db.membership.count.mockResolvedValue(2);
+  db.membership.findUnique.mockResolvedValue(null);db.membership.findMany=jest.fn().mockResolvedValue([{slot:1},{slot:2}]);
   await expect(service.join(userId,'PAIR-test')).rejects.toBeInstanceOf(ConflictError);
   expect(db.membership.create).not.toHaveBeenCalled();
  });
  it('reports a concurrent partner membership conflict without consuming the code',async()=>{
   db.connectionCode.findUnique.mockResolvedValue({kind:'partner',creatorId:'bob',targetId:'pair',expiresAt:new Date(Date.now()+10000)});
-  db.membership.findUnique.mockResolvedValue(null);db.membership.count.mockResolvedValue(1);
+  db.membership.findUnique.mockResolvedValue(null);db.membership.findMany=jest.fn().mockResolvedValue([{slot:1}]);
   db.membership.create.mockRejectedValue(new Prisma.PrismaClientKnownRequestError('unique conflict',{code:'P2002',clientVersion:'test'}));
   await expect(service.join(userId,'PAIR-test')).rejects.toBeInstanceOf(ConflictError);
   expect(db.connectionCode.update).not.toHaveBeenCalled();

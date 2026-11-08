@@ -86,4 +86,79 @@ describe('personal planner with real PostgreSQL transactions', () => {
     await planner.fulfill(bob.id,redemption.id);
     expect((await db.spaceRedemption.findUniqueOrThrow({where:{id:redemption.id}})).status).toBe('FULFILLED');
   });
+  it('shares group notes with new members, rejects outsiders and preserves a concurrent winner', async () => {
+    const circle = await services.circles.create(alice.id, 'Shared notebook test');
+    const space = { scopeKind: 'GROUP' as const, scopeId: circle.id };
+    const note = await services.notes.create(alice.id, space);
+    const invite = await services.circles.code(alice.id, 'group', circle.id);
+    await services.circles.join(bob.id, invite.code);
+    expect((await services.notes.list(bob.id, space)).map(item => item.id)).toContain(note.id);
+    await expect(services.notes.get(carol.id, note.id)).rejects.toThrow('not a member');
+    await expect(services.notes.create(carol.id, space)).rejects.toThrow('not a member');
+    const content = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Our shared plan' }] }] };
+    const results = await Promise.allSettled([
+      services.notes.edit(alice.id, note.id, { title: 'Alice’s edit', content, version: 1 }),
+      services.notes.edit(bob.id, note.id, { title: 'Bob’s edit', content, version: 1 }),
+    ]);
+    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.find(result => result.status === 'rejected') as PromiseRejectedResult;
+    expect(rejected.reason.status).toBe(409);
+    const stored = await services.notes.get(bob.id, note.id);
+    expect(stored.version).toBe(2);
+    expect(stored.content).toEqual(content);
+    await services.notes.edit(bob.id, note.id, { title: 'Reviewed together', content, version: stored.version });
+    expect((await services.notes.get(alice.id, note.id)).title).toBe('Reviewed together');
+    const other = await services.circles.create(carol.id, 'A different notebook');
+    expect(await services.notes.list(carol.id, { scopeKind: 'GROUP', scopeId: other.id })).toEqual([]);
+  });
+  it('links two waiting partner spaces without losing notes, pending habits, rewards, or personal tasks', async () => {
+    const people = await Promise.all(['waiting-one', 'waiting-two'].map(name => db.user.create({ data: { email: `${name}-${randomUUID()}@example.test` } })));
+    const [first, second] = await Promise.all(people.map(person => services.pairs.createPair(person, 'Our waiting space', 'UTC')));
+    const [firstCode, secondCode] = await Promise.all([services.circles.code(people[0].id,'partner',first.id), services.circles.code(people[1].id,'partner',second.id)]);
+    const note = await services.notes.create(people[1].id, {scopeKind:'PAIR',scopeId:second.id});
+    const habit = await services.goals.create(people[1].id, {title:'Read together',weekdays:[1,3],requiredCount:1,weeklyTokens:2});
+    const reward = await services.rewards.create(people[1].id, {title:'Coffee',fulfillmentExpectation:'A coffee together',cost:2});
+    const personal = await services.planner.createTask(people[1].id, {title:'Keep my private task',notes:'Keep this private',kind:'TODO',timezone:'UTC',weekdays:[1],dueOn:null,target:1});
+    await services.circles.join(people[1].id, firstCode.code);
+    expect((await services.pairs.current(people[1].id)).members.map(member=>member.user.id).sort()).toEqual(people.map(person=>person.id).sort());
+    expect((await services.notes.get(people[0].id,note.id)).scopeId).toBe(first.id);
+    expect((await db.goal.findUniqueOrThrow({where:{id:habit.id}})).pairId).toBe(first.id);
+    expect((await db.reward.findUniqueOrThrow({where:{id:reward.id}})).pairId).toBe(first.id);
+    expect((await services.planner.tasks(people[1].id)).find(task=>task.id===personal.id)?.notes).toBe('Keep this private');
+    await expect(services.circles.join(people[1].id,firstCode.code)).resolves.toEqual({kind:'partner',targetId:first.id});
+    await expect(services.circles.join(people[0].id,secondCode.code)).resolves.toEqual({kind:'partner',targetId:first.id});
+    await expect(services.circles.join(carol.id,firstCode.code)).rejects.toThrow('invalid or expired');
+  });
+  it('applies the same waiting-space fix to legacy email invitations', async () => {
+    const people = await Promise.all(['email-one','email-two'].map(name=>db.user.create({data:{email:`${name}-${randomUUID()}@example.test`}})));
+    await Promise.all(people.map(person=>services.pairs.createPair(person,'Waiting','UTC')));
+    const invite=await services.pairs.createInvite(people[0],people[1].email);
+    await services.pairs.acceptInvite(people[1],invite.token);
+    expect((await services.pairs.current(people[0].id)).members).toHaveLength(2);
+  });
+  it('preserves an established couple and a waiting wallet when joining is refused', async () => {
+    const host=await db.user.create({data:{email:`host-${randomUUID()}@example.test`}});
+    const waiting=await services.pairs.createPair(host,'Waiting','UTC');
+    const code=await services.circles.code(host.id,'partner',waiting.id);
+    const before=await services.pairs.current(alice.id);
+    await expect(services.circles.join(alice.id,code.code)).rejects.toThrow('already connected');
+    expect((await services.pairs.current(alice.id)).pairId).toBe(before.pairId);
+    const walletOwner=await db.user.create({data:{email:`wallet-${randomUUID()}@example.test`}});
+    const walletSpace=await services.pairs.createPair(walletOwner,'Preserve wallet','UTC');
+    await db.ledgerEntry.create({data:{pairId:walletSpace.id,userId:walletOwner.id,amount:3,reason:'TASK_AWARD',sourceId:randomUUID(),idempotencyKey:randomUUID()}});
+    await expect(services.circles.join(walletOwner.id,code.code)).rejects.toThrow('token history');
+    expect((await services.wallet.balance(walletOwner.id)).balance).toBe(3);
+    expect((await services.pairs.current(walletOwner.id)).pairId).toBe(walletSpace.id);
+    expect((await services.pairs.current(host.id)).members).toHaveLength(1);
+  });
+  it('serializes crossed partner codes into one couple', async () => {
+    const people=await Promise.all(['cross-one','cross-two'].map(name=>db.user.create({data:{email:`${name}-${randomUUID()}@example.test`}})));
+    const pairs=await Promise.all(people.map(person=>services.pairs.createPair(person,'Waiting','UTC')));
+    const codes=await Promise.all(pairs.map((pair,index)=>services.circles.code(people[index].id,'partner',pair.id)));
+    const results=await Promise.allSettled([services.circles.join(people[0].id,codes[1].code),services.circles.join(people[1].id,codes[0].code)]);
+    expect(results.some(result=>result.status==='fulfilled')).toBe(true);
+    const current=await Promise.all(people.map(person=>services.pairs.current(person.id)));
+    expect(current[0].pairId).toBe(current[1].pairId);
+    expect(current[0].members).toHaveLength(2);
+  });
 });
