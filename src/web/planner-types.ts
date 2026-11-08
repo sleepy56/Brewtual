@@ -8,6 +8,7 @@ export type PersonalTask = {
   kind: 'TODO' | 'DAILY' | 'GOAL'; timezone: string; weekdays: number[];
   dueOn: string | null; target: number; progress: number; archived: boolean;
   today: string; dueToday: boolean; completed: boolean; rewarded: boolean;
+  ownerEmail: string; shares: Pick<PlannerSpace, 'scopeKind' | 'scopeId'>[];
   proposals: { id: string; scopeKind: 'PAIR' | 'GROUP'; scopeId: string; tokens: number; status: 'PENDING' | 'ACTIVE' | 'REJECTED' }[];
 };
 export type MarketReward = {

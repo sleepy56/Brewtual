@@ -24,6 +24,7 @@ export async function joinPartnerSpace(tx: Prisma.TransactionClient, userId: str
   // Membership foreign keys carry pending legacy habits, rewards, and invites with the owner.
   const member = await tx.membership.update({ where: { userId }, data: { pairId, slot }, include: { pair: true } });
   await tx.sharedNote.updateMany({ where: scope, data: { scopeId: pairId, version: { increment: 1 } } });
+  await tx.taskShare.updateMany({ where: scope, data: { scopeId: pairId } });
   await tx.taskTokenProposal.updateMany({ where: { ...scope, status: 'ACTIVE' }, data: { status: 'PENDING', approvedById: null, approvedAt: null } });
   await tx.taskTokenProposal.updateMany({ where: scope, data: { scopeId: pairId } });
   await tx.spaceReward.updateMany({ where: { ...scope, status: 'ACTIVE' }, data: { status: 'PENDING', approvedById: null } });

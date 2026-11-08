@@ -12,6 +12,8 @@ Whether you’re reading more, moving a little each day, or working toward a big
 
 **Start with yourself.** Check off one-time tasks, schedule Dailies for the days that suit you, and track longer-term Goals one step at a time. You don’t need a partner to begin.
 
+**Choose your section.** The header switches between Personal, Partner, and your groups. Personal collects all your own tasks. A task created in a shared section appears there and in Personal; a Personal task stays private until you share it from its editor. Members can see shared progress, and only the owner can update the task. Private notes stay personal.
+
 **Build with your person.** Connect a partner and use “Ask for tokens” on a task, Daily, or Goal. Once they approve the terms, future completions earn tokens toward thoughtful rewards.
 
 **Grow with your friends.** Bring people into a friend circle with a shared invite code. Share progress, approve token requests, and offer rewards. Partner tokens, Group 1 tokens, Group 2 tokens, and their markets stay separate.
@@ -20,7 +22,7 @@ Whether you’re reading more, moving a little each day, or working toward a big
 
 **Give milestones something to look forward to.** Offer a little promise, like coffee when a friend finishes a goal. Friends choose whether to join in, and you arrange the celebration together.
 
-**Make the space your own.** Choose Solaris, with dark glass cards and violet/cyan glows, or Cozy, with warm cream, coffee, and rose tones. Switch using the theme name in the app header or the choices in Settings; your browser remembers the choice. The website adapts to desktop and phone screens, and you can add it to your phone’s home screen.
+**Make the space your own.** Choose Solaris, with dark glass cards and violet/cyan glows, or Cozy, with warm cream, coffee, and rose tones. Switch using the choices in Settings or the desktop sidebar; your browser remembers the choice. The website adapts to desktop and phone screens, and you can add it to your phone’s home screen.
 
 ## Find your together
 

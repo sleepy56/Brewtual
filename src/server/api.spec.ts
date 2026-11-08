@@ -226,6 +226,13 @@ describe('Next API contract', () => {
     expect((await request('/planner/tasks',{...valid,dueOn:'2026-02-31'})).status).toBe(400);
     expect((await request('/planner/tasks/not-an-id/complete',{completed:true})).status).toBe(400);
     expect((await request('/planner/market?scopeKind=GROUP&scopeId=invalid')).status).toBe(400);
+    expect((await request('/planner/tasks?scopeKind=GROUP&scopeId=invalid')).status).toBe(400);
+    expect((await request('/planner/tasks?scopeKind=PAIR')).status).toBe(400);
+    const space={scopeKind:'GROUP',scopeId:'11111111-1111-4111-8111-111111111111'};
+    expect((await request('/planner/tasks',{...valid,spaces:[space,space]})).status).toBe(400);
+    expect((await request('/planner/tasks',{...valid,spaces:[space]})).status).toBe(201);
+    expect((await request(`/planner/tasks?scopeKind=GROUP&scopeId=${space.scopeId}`)).status).toBe(200);
+    expect(services.planner.tasks).toHaveBeenLastCalledWith('alice',space);
   });
 
 });

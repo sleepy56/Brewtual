@@ -11,6 +11,14 @@ Brewtual opens a personal planner after sign-in. Partner onboarding no longer re
 
 Personal notes stay private. Archiving is reversible. Regular completions can be undone; completions that already earned tokens are final to prevent repeated collection or spending followed by reversal.
 
+## Personal, Partner, and Group sections
+
+Use the themed section popup in the header. **Personal** lists all tasks you own, including tasks you share elsewhere. **Partner** and **Group** sections list tasks shared with that space by any member. Everyone can see shared progress; only the task owner can edit, complete, archive, or request tokens for it. Private notes and sharing choices for other spaces are never exposed to another owner’s section view.
+
+New tasks created inside a shared section select that section automatically and also appear in Personal. Tasks created in Personal start with no shared sections. Open an owned task and use **Show this task in** to add or remove sections. This controls visibility in task lists; existing token requests still show their task terms in their markets. Sharing does not grant tokens or skip approval. A section can hold shared tasks before its second member joins.
+
+Desktop uses the sidebar; phones use the bottom menu, with all pages available under **More**. Theme choices remain in Settings and the desktop sidebar.
+
 ## Connect only when ready
 
 Use Together to create or join a partner space or a friend circle. The market for each space unlocks when it contains at least two people. A one-person partner space or group does not block personal planning.
@@ -40,7 +48,9 @@ All endpoints require authentication under `/api/v1`.
 
 | Method/path | Purpose |
 | --- | --- |
-| `GET/POST /planner/tasks` | List or create private personal tasks |
+| `GET /planner/tasks` | All tasks owned by the current user |
+| `GET /planner/tasks?scopeKind=PAIR\|GROUP&scopeId=...` | Shared tasks in a section the caller belongs to, with private notes removed for other owners |
+| `POST /planner/tasks` | Create a task, optionally sharing it through `spaces: [{scopeKind,scopeId}]` |
 | `POST /planner/tasks/:id/edit` | Edit an owned task; material changes requeue approval |
 | `POST /planner/tasks/:id/archive` | Archive or restore with `{archived}` |
 | `POST /planner/tasks/:id/complete` | Explicit `{completed}` for a Task or Daily |
@@ -57,6 +67,8 @@ All endpoints require authentication under `/api/v1`.
 ## Migration and verification
 
 Run `npm run db:migrate` before deploying this version, including on existing databases. The additive `20261023190000_personal_planner` migration creates the new records and adds the `TASK_AWARD` ledger reason; it preserves previous partner and circle data.
+
+The additive `20261108000000_task_sections` migration stores task visibility. Existing token requests already shared task terms with their spaces, so those tasks are included in the corresponding sections. Other existing tasks remain Personal only. Waiting partner spaces carry their task sharing into the joined space.
 
 Unit and API tests cover ownership, solo use, scheduled local-day completion, approvals, duplicate awards, balance separation, and redemption retry behavior. Component tests cover navigation with no partner, a waiting partner, and connected spaces. `test/integration/planner.integration.spec.ts` additionally exercises real PostgreSQL transactions, concurrent completion, competing spends, and group isolation using an isolated local test schema. It requires a running local database and `TEST_DATABASE_URL`; it never accesses a hosted database.
 

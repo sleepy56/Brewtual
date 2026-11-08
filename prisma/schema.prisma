@@ -320,7 +320,17 @@ model PersonalTask {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   completions TaskCompletion[]
   proposals TaskTokenProposal[]
+  shares TaskShare[]
   @@index([userId, archived])
+}
+
+model TaskShare {
+  taskId String @db.Uuid
+  scopeKind TaskSpaceKind
+  scopeId String @db.Uuid
+  task PersonalTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  @@id([taskId, scopeKind, scopeId])
+  @@index([scopeKind, scopeId])
 }
 
 model TaskCompletion {

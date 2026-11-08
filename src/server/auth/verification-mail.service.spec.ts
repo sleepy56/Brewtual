@@ -10,7 +10,7 @@ describe('Verification email delivery', () => {
     process.env.SMTP_PORT = '465';
     process.env.SMTP_USER = 'resend';
     process.env.SMTP_PASSWORD = 'test-only-api-key';
-    process.env.SMTP_FROM = 'verify@example.com';
+    process.env.SMTP_FROM = 'Brewtual <hello@sleepytanuki.dev>';
     process.env.APP_WEB_URL = 'https://habits.example.com';
     transport.sendMail.mockReset().mockResolvedValue({}); transport.close.mockReset();
     create = jest.spyOn(nodemailer, 'createTransport').mockReturnValue(transport as never);
@@ -26,7 +26,7 @@ describe('Verification email delivery', () => {
     const link = new URL(message.text.match(/https:\/\/\S+/)[0]);
     expect(link.pathname).toBe('/verify-email'); expect(link.search).toBe('');
     expect(new URLSearchParams(link.hash.slice(1)).get('token')).toBe('a'.repeat(43));
-    expect(message.from).toBe('verify@example.com'); expect(message.to).toBe('recipient@example.com'); expect(transport.close).toHaveBeenCalled();
+    expect(message.from).toBe('Brewtual <hello@sleepytanuki.dev>'); expect(message.to).toBe('recipient@example.com'); expect(transport.close).toHaveBeenCalled();
   });
 
   it('hides provider errors and closes the transport', async () => {

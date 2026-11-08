@@ -218,7 +218,13 @@ export function createApi(services: Services) {
         if (method === 'GET') return json(await services.notes.get(user.id, id.data));
         return json(await services.notes.edit(user.id, id.data, await body(request, schemas.editNoteSchema)), 200);
       }
-      if (method === 'GET' && endpoint === '/planner/tasks') return json(await services.planner.tasks(user.id));
+      if (method === 'GET' && endpoint === '/planner/tasks') {
+        const params = new URL(request.url).searchParams;
+        if (!params.has('scopeKind') && !params.has('scopeId')) return json(await services.planner.tasks(user.id));
+        const parsed = schemas.scopeSchema.safeParse({ scopeKind: params.get('scopeKind'), scopeId: params.get('scopeId') });
+        if (!parsed.success) throw new BadRequestError('Choose a valid task section.');
+        return json(await services.planner.tasks(user.id, parsed.data));
+      }
       if (method === 'GET' && endpoint === '/planner/spaces') {
         try {
           await services.pairs.current(user.id);

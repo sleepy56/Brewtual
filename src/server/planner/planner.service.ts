@@ -54,24 +54,35 @@ export class PlannerService {
     return Promise.all(all.map(async space => ({ ...space, connected: space.members.length >= 2, balance: await this.balance(this.db, userId, space) })));
   }
 
-  async tasks(userId: string) {
+  async tasks(userId: string, space?: Space) {
+    if (space) await this.members(this.db, userId, space, false);
     const tasks = await this.db.personalTask.findMany({
-      where: { userId }, orderBy: { createdAt: 'desc' },
+      where: space ? { shares: { some: scopeWhere(space) } } : { userId }, orderBy: { createdAt: 'desc' },
       include: {
         completions: { orderBy: { createdAt: 'desc' }, take: 14, include: { _count: { select: { awards: true } } } },
         proposals: true,
+        shares: true,
+        user: { select: { email: true } },
       },
     });
     return tasks.map(task => {
       const today = localDate(this.clock.now(), task.timezone);
       const period = task.kind === 'DAILY' ? today : 'once';
       const completion = task.completions.find(item => item.period === period);
-      return { ...task, today, dueToday: task.kind !== 'DAILY' || task.weekdays.includes(localWeekday(today)), completed: !!completion, rewarded: !!completion?._count.awards };
+      const own = task.userId === userId;
+      return { id: task.id, userId: task.userId, ownerEmail: task.user.email, title: task.title, notes: own ? task.notes : '', kind: task.kind,
+        timezone: task.timezone, weekdays: task.weekdays, dueOn: task.dueOn, target: task.target, progress: task.progress, archived: task.archived,
+        shares: own ? task.shares.map(scopeWhere) : [space!], proposals: task.proposals.filter(proposal => own || (proposal.scopeKind === space?.scopeKind && proposal.scopeId === space.scopeId)),
+        today, dueToday: task.kind !== 'DAILY' || task.weekdays.includes(localWeekday(today)), completed: !!completion, rewarded: !!completion?._count.awards };
     });
   }
 
   async createTask(userId: string, data: CreatePersonalTask) {
-    return this.db.personalTask.create({ data: { ...data, userId } });
+    const { spaces = [], ...fields } = data;
+    return this.db.runInTransaction(async tx => {
+      for (const space of spaces) await this.members(tx, userId, space, false);
+      return tx.personalTask.create({ data: { ...fields, userId, ...(spaces.length ? { shares: { create: spaces } } : {}) } });
+    });
   }
 
   async ownedTask(tx: Tx, userId: string, id: string) {
@@ -83,6 +94,8 @@ export class PlannerService {
   async editTask(userId: string, id: string, data: EditPersonalTask) {
     return this.db.runInTransaction(async tx => {
       const task = await this.ownedTask(tx, userId, id);
+      const { spaces, ...fields } = data;
+      if (spaces) for (const space of spaces) await this.members(tx, userId, space, false);
       if ((task.kind !== 'GOAL' && data.target !== 1) || data.target < task.progress) throw new BadRequestError('The target must cover your current progress.');
       if (task.kind === 'GOAL' && data.target !== task.target && await tx.taskCompletion.findUnique({ where: { taskId_period: { taskId: id, period: 'once' } } })) {
         throw new ConflictError('A completed goal keeps its original target. Create a new goal for the next milestone.');
@@ -91,7 +104,7 @@ export class PlannerService {
       if (task.title !== data.title || task.target !== data.target || task.weekdays.join(',') !== data.weekdays.join(',') || task.dueOn !== data.dueOn) {
         await tx.taskTokenProposal.updateMany({ where: { taskId: id }, data: { status: 'PENDING', approvedById: null, approvedAt: null } });
       }
-      return tx.personalTask.update({ where: { id }, data });
+      return tx.personalTask.update({ where: { id }, data: { ...fields, ...(spaces ? { shares: { deleteMany: {}, create: spaces } } : {}) } });
     });
   }
 

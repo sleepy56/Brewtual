@@ -13,17 +13,19 @@ type Note = NoteSummary & { content: JSONContent; scopeKind: 'PAIR' | 'GROUP'; s
 const message = (error: unknown) => error instanceof Error ? error.message : 'Could not load your notes. Try again.';
 const key = (space: PlannerSpace) => `${space.scopeKind}:${space.scopeId}`;
 
-export function SharedNotes({ spaces, userId, initialSpace = '', onPendingChange, connect }: {
-  spaces: PlannerSpace[]; userId: string; initialSpace?: string; onPendingChange: (pending: boolean) => void; connect: () => void;
+export function SharedNotes({ spaces, userId, initialSpace = '', onPendingChange, onSpaceChange, connect }: {
+  spaces: PlannerSpace[]; userId: string; initialSpace?: string; onPendingChange: (pending: boolean) => void; onSpaceChange?: (space: string) => void; connect: () => void;
 }) {
   const [selected, setSelected] = useState(initialSpace);
   const pending = useRef(false);
   const space = spaces.find(item => key(item) === selected) ?? spaces[0];
   const reportPending = useCallback((value: boolean) => { pending.current = value; onPendingChange(value); }, [onPendingChange]);
+  useEffect(() => { setSelected(initialSpace); }, [initialSpace]);
   if (!space) return <section className="empty"><span className="notes-empty-icon" aria-hidden="true">▤</span><h2>A shared place for your thoughts.</h2><p className="muted">Connect a partner or create a friend circle to start a notebook together.</p><button className="primary" onClick={connect}>Find your people →</button></section>;
   return <section className="shared-notes">
     <div className="notes-space-heading"><label className="market-selector">Shared notebook<select aria-label="Shared notebook" value={key(space)} onChange={event => {
-      if (!pending.current || window.confirm('Leave this note? Unsaved changes will be lost.')) setSelected(event.target.value);
+      if (onSpaceChange) onSpaceChange(event.target.value);
+      else if (!pending.current || window.confirm('Leave this note? Unsaved changes will be lost.')) setSelected(event.target.value);
     }}>{spaces.map(item => <option value={key(item)} key={key(item)}>{item.scopeKind === 'PAIR' ? 'Partner' : 'Group'} · {item.name}</option>)}</select></label><p className="muted small">Everyone in this space can read and edit every note, including people who join later.</p></div>
     <Notebook key={key(space)} space={space} userId={userId} onPendingChange={reportPending}/>
   </section>;

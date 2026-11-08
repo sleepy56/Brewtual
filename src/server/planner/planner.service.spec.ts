@@ -38,6 +38,17 @@ describe('personal planner and scoped token markets', () => {
     await service.tasks('alice');
     expect(db.personalTask.findMany.mock.calls[0][0].where).toEqual({userId:'alice'});
   });
+  it('checks section membership before sharing or reading tasks, including one-person spaces', async () => {
+    db.membership.findMany.mockResolvedValue([members[0]]);
+    await service.createTask('alice', { ...task, spaces: [pair] });
+    expect(db.personalTask.create.mock.calls[0][0].data.shares).toEqual({create:[pair]});
+    await service.tasks('alice', pair);
+    expect(db.personalTask.findMany.mock.calls[0][0].where).toEqual({shares:{some:pair}});
+    await expect(service.tasks('outsider', pair)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(service.createTask('outsider', {...task,spaces:[pair]})).rejects.toBeInstanceOf(ForbiddenError);
+    db.circleMember.findMany.mockResolvedValue([members[1]]);
+    await expect(service.editTask('alice','task',{...task,spaces:[group]})).rejects.toBeInstanceOf(ForbiddenError);
+  });
   it('prevents another account from completing, editing, archiving, or submitting a task', async () => {
     await expect(service.completeTask('bob','task',{completed:true})).rejects.toBeInstanceOf(NotFoundError);
     await expect(service.editTask('bob','task',task)).rejects.toBeInstanceOf(NotFoundError);

@@ -14,9 +14,9 @@ vm.runInNewContext(ts.transpileModule(readFileSync(require.resolve('../src/web/a
 }).outputText, { exports: appearance, require });
 
 // Exercise the actual planner event handlers and rendered views without a browser dependency.
-async function mountPlanner({ tasks = [], spaces = [], failTasks = false, mutation, confirmLeave = true, theme = 'midnight' } = {}) {
-  const state = [], refs = [], effects = [];
-  let cursor = 0, first = true;
+async function mountPlanner({ tasks = [], spaces = [], sectionTasks = {}, failTasks = false, mutation, confirmLeave = true, theme = 'midnight' } = {}) {
+  const state = [], refs = [], effects = [], memos = [], deps = [];
+  let cursor = 0;
   const hooks = {
     ...React,
     useState(initial) {
@@ -25,13 +25,14 @@ async function mountPlanner({ tasks = [], spaces = [], failTasks = false, mutati
       return [state[slot], value => { state[slot] = typeof value === 'function' ? value(state[slot]) : value; }];
     },
     useRef(initial) { const slot = cursor++; return refs[slot] ??= { current: initial }; },
-    useCallback(fn) { return fn; },
-    useEffect(fn) { if (first) effects.push(fn); },
+    useCallback(fn, values) { const slot=cursor++; if (!deps[slot] || values.some((value,index)=>!Object.is(value,deps[slot][index]))) {memos[slot]=fn;deps[slot]=values;} return memos[slot]; },
+    useEffect(fn, values) { const slot=cursor++; if (!deps[slot] || values.some((value,index)=>!Object.is(value,deps[slot][index]))) {effects.push(fn);deps[slot]=values;} },
   };
   const exports = {};
   class ApiError extends Error { constructor(message, status) { super(message); this.status = status; } }
   const api = async (path, method, data) => {
     if (path === '/planner/tasks') { if (failTasks) throw new Error('Planner unavailable'); return tasks; }
+    if (path.startsWith('/planner/tasks?')) { const params=new URLSearchParams(path.split('?')[1]); return sectionTasks[`${params.get('scopeKind')}:${params.get('scopeId')}`] ?? []; }
     if (path === '/planner/spaces') return spaces;
     if (path === '/pairs/current') throw new ApiError('You are not in a pair', 403);
     if (mutation) return mutation(path, method, data);
@@ -54,9 +55,9 @@ async function mountPlanner({ tasks = [], spaces = [], failTasks = false, mutati
   });
   const props = { account: { id: 'alice', email: 'alex@example.test' }, logout: async () => {}, theme, setTheme(value) { props.theme = value; }, openLegacy() {} };
   let tree;
-  const render = () => { cursor = 0; tree = exports.Planner(props); return renderToStaticMarkup(tree); };
-  render(); first = false;
-  effects.splice(0).forEach(effect => effect());
+  let menuClosed = false;
+  const render = () => { cursor = 0; tree = exports.Planner(props); effects.splice(0).forEach(effect => effect()); return renderToStaticMarkup(tree); };
+  render();
   await new Promise(resolve => setImmediate(resolve));
   render();
   function all(node) {
@@ -70,14 +71,27 @@ async function mountPlanner({ tasks = [], spaces = [], failTasks = false, mutati
   }
   return {
     html: render,
+    async settle() { await new Promise(resolve=>setImmediate(resolve));render();await new Promise(resolve=>setImmediate(resolve));return render(); },
+    async section(name) {
+      const menu=all(tree).find(node=>node.type==='nav' && node.props['aria-label']==='Task sections');
+      const button=all(menu).find(node=>node.type==='button' && text(node).startsWith(name));
+      assert.ok(button, `Missing section: ${name}`);
+      button.props.onClick({currentTarget:{closest:()=>({removeAttribute(){},querySelector:()=>null})}});
+      render(); await new Promise(resolve=>setImmediate(resolve));return render();
+    },
+    menuClosed: () => menuClosed,
     notePending(value) { all(tree).find(node => node.props.onPendingChange).props.onPendingChange(value); },
     openNotes(kind, id) { all(tree).find(node => node.props.openNotes).props.openNotes(kind, id); return render(); },
-    navigate(label) {
-      const nav = all(tree).find(node => node.type === 'nav' && node.props['aria-label'] === 'Main navigation');
+    navigate(label, surface = 'Main navigation') {
+      const nav = all(tree).find(node => node.type === 'nav' && node.props['aria-label'] === surface);
       const button = all(nav).find(node => node.type === 'button' && text(node).endsWith(label));
       assert.ok(button, `Missing navigation item: ${label}`);
-      button.props.onClick();
+      button.props.onClick({ currentTarget: { closest: () => ({ removeAttribute: () => { menuClosed = true; }, querySelector: () => null }) } });
       return render();
+    },
+    current(surface) {
+      const nav = all(tree).find(node => node.type === 'nav' && node.props['aria-label'] === surface);
+      return all(nav).filter(node => node.props['aria-current'] === 'page').map(text);
     },
     click(label) {
       const button = all(tree).find(node => node.type === 'button' && text(node).includes(label));
@@ -120,17 +134,41 @@ test('shared notes warns before leaving an unsaved draft and respects cancellati
   assert.match(planner.navigate('Today'), /Your day. Your little rituals/);
 });
 
+test('mobile More opens every section, marks the selected page, and closes after selection', async () => {
+  const planner = await mountPlanner();
+  for (const [tab, heading] of [['Today','Your day. Your little rituals.'],['Task list','Your task list'],['Dailies','Your recurring rituals'],['Goals','Your longer-term goals'],['Shared notes','Shared notebooks'],['Token market','Your market is waiting for company'],['Together','Friend connections'],['Activity','Look how far you’ve come.'],['Settings','Your preferences']]) {
+    assert.ok(planner.navigate(tab, 'All sections').includes(heading), tab);
+    assert.deepEqual(planner.current('Main navigation'), [tab]);
+    assert.deepEqual(planner.current('All sections'), [tab]);
+    assert.equal(planner.menuClosed(), true);
+  }
+  assert.match(planner.navigate('Goals', 'Mobile navigation'), /Your longer-term goals/);
+  assert.deepEqual(planner.current('Mobile navigation'), ['Goals', 'Goals']);
+  assert.match(await planner.action('Create something'), /Make room for a little progress/);
+});
+
+test('mobile navigation keeps the unsaved-note guard for both direct tabs and More', async () => {
+  const planner = await mountPlanner({ confirmLeave: false });
+  planner.navigate('Shared notes', 'All sections');
+  planner.notePending(true);
+  assert.match(planner.navigate('Today', 'Mobile navigation'), /A place to think together/);
+  assert.match(planner.navigate('Settings', 'All sections'), /A place to think together/);
+  planner.notePending(false);
+  assert.match(planner.navigate('Settings', 'All sections'), /Your preferences/);
+});
+
 test('opening notes from a group passes that group to the notebook selector', async () => {
   const planner = await mountPlanner({ spaces: [{ scopeKind: 'GROUP', scopeId: 'group-two', name: 'Group two', members: [], connected: false, balance: 0 }] });
   planner.navigate('Together');
-  assert.match(planner.openNotes('GROUP', 'group-two'), /Selected: GROUP:group-two/);
+  planner.openNotes('GROUP', 'group-two');
+  assert.match(await planner.settle(), /Selected: GROUP:group-two/);
 });
 
 test('a solo user can open task and Daily creation, and token requests explain how to connect', async () => {
   const planner = await mountPlanner();
   planner.navigate('Task list');
   assert.match(planner.click('Add task'), /A new task/);
-  const withTask = await mountPlanner({ tasks: [{id:'task',title:'Read a chapter',notes:'',kind:'TODO',target:1,progress:0,completed:false,rewarded:false,archived:false,weekdays:[1,2,3,4,5,6,7],timezone:'UTC',today:'2026-10-23',dueToday:true,dueOn:null,proposals:[]}] });
+  const withTask = await mountPlanner({ tasks: [{id:'task',userId:'alice',title:'Read a chapter',notes:'',kind:'TODO',target:1,progress:0,completed:false,rewarded:false,archived:false,weekdays:[1,2,3,4,5,6,7],timezone:'UTC',today:'2026-10-23',dueToday:true,dueOn:null,proposals:[]}] });
   withTask.navigate('Task list');
   assert.match(withTask.click('Ask for tokens'), /Your task still works on its own/);
 });
@@ -277,7 +315,7 @@ function mountPart(part, props, options = {}) {
   return { calls, render, html:()=>renderToStaticMarkup(render()), async settle(){await new Promise(resolve=>setImmediate(resolve));return renderToStaticMarkup(render());}, elements: () => all(render()), button(label) { const button = all(render()).find(n => n.type === 'button' && text(n).includes(label)); assert.ok(button, label); return button; }, input(index, value) { const input = all(render()).filter(n => n.type === 'input' || n.type === 'textarea')[index]; assert.ok(input); input.props.onChange({ target: { value, checked: value } }); }, submit(index=0) { const form = all(render()).filter(n => n.type === 'form')[index]; assert.ok(form); form.props.onSubmit({ preventDefault() {} }); } };
 }
 
-const taskFixture = { id: 'task', userId: 'alice', title: 'Read', notes: 'private', kind: 'TODO', timezone: 'UTC', weekdays: [1,2,3,4,5,6,7], dueOn: null, target: 1, progress: 0, archived: false, today: '2026-10-23', dueToday: true, completed: false, rewarded: false, proposals: [] };
+const taskFixture = { shares: [], ownerEmail: 'alex@example.test', id: 'task', userId: 'alice', title: 'Read', notes: 'private', kind: 'TODO', timezone: 'UTC', weekdays: [1,2,3,4,5,6,7], dueOn: null, target: 1, progress: 0, archived: false, today: '2026-10-23', dueToday: true, completed: false, rewarded: false, proposals: [] };
 const connectedSpace = { scopeKind: 'PAIR', scopeId: 'pair', name: 'Us', connected: true, balance: 20, members: [] };
 
 test('reference home shows real balances, due work, upcoming tasks, and completed wins', async () => {
@@ -315,10 +353,11 @@ test('home checkboxes and goal steps keep the existing API behavior and rewarded
   assert.match(planner.click('A ritual worth repeating'), /A new daily/);
 });
 
-test('Solaris and Cozy switch from the home header and both appear in settings', async () => {
-  const planner = await mountPlanner();
-  assert.match(await planner.action('Switch to Cozy theme'), /Better days, brewed together/);
-  assert.match(await planner.action('Switch to Solaris theme'), /Small steps. Shared wins/);
+test('the header selects task sections while theme choices stay in Settings', async () => {
+  const planner = await mountPlanner({spaces:[connectedSpace]});
+  assert.match(planner.html(), /Choose section: Personal/);
+  assert.ok(!planner.html().includes('Switch to Cozy theme'));
+  assert.match(await planner.section('Us'), /Partner · Shared tasks/);
   const settings = planner.navigate('Settings');
   assert.match(settings, /Solaris/);
   assert.match(settings, /Warm coffee. Good company/);
@@ -351,6 +390,48 @@ test('task, daily, and goal forms submit their own fields and editing preserves 
   assert.equal(saved.title, 'Updated title');
   assert.equal(saved.notes, 'private');
   assert.equal('kind' in saved, false);
+});
+
+test('Personal combines owned tasks while shared sections show members with owner-only actions', async () => {
+  const shared={...taskFixture, id:'shared', title:'Our weekend', shares:[{scopeKind:'PAIR',scopeId:'pair'}]};
+  const partner={...shared,id:'partner-task',userId:'bob',ownerEmail:'oliver@example.test',title:'Partner’s task',notes:''};
+  const planner=await mountPlanner({spaces:[connectedSpace],tasks:[taskFixture,shared],sectionTasks:{'PAIR:pair':[shared,partner]}});
+  assert.match(planner.html(),/Our weekend/);
+  assert.ok(!planner.html().includes('Partner’s task'));
+  const html=await planner.section('Us');
+  assert.match(html,/Partner’s task/);
+  assert.ok(!html.includes('Edit Read'));
+  assert.equal(planner.disabled('Complete Partner’s task'),true);
+  assert.match(planner.navigate('Task list'),/Only the owner can update this task/);
+  const personal=await planner.section('Personal');
+  assert.match(personal,/Our weekend/);
+  assert.ok(!personal.includes('Partner’s task'));
+});
+
+test('task forms default to their section and let owners choose multiple shared sections', () => {
+  const group={...connectedSpace,scopeKind:'GROUP',scopeId:'group',name:'Friends'};
+  let saved;
+  const personal=mountPart('TaskForm',{task:null,kind:'TODO',busy:false,error:'',spaces:[connectedSpace,group],save:data=>{saved=data;}});
+  personal.submit(); assert.deepEqual(JSON.parse(JSON.stringify(saved.spaces)),[]);
+  const shared=mountPart('TaskForm',{task:null,kind:'TODO',busy:false,error:'',spaces:[connectedSpace,group],initialSpace:connectedSpace,save:data=>{saved=data;}});
+  const checkbox=shared.elements().filter(node=>node.type==='input' && node.props.type==='checkbox');
+  assert.equal(checkbox[0].props.checked,true); assert.equal(checkbox[1].props.checked,false);
+  checkbox[1].props.onChange({target:{checked:true}});shared.submit();
+  assert.deepEqual(JSON.parse(JSON.stringify(saved.spaces)),[{scopeKind:'PAIR',scopeId:'pair'},{scopeKind:'GROUP',scopeId:'group'}]);
+  const unavailable=mountPart('TaskForm',{task:{...taskFixture,shares:[connectedSpace]},kind:'TODO',busy:false,error:'',spaces:[],sharingAvailable:false,save:data=>{saved=data;}});
+  unavailable.submit(); assert.equal('spaces' in saved,false);
+});
+
+test('late section responses cannot replace the current Personal view, and switching keeps the note guard', async () => {
+  let finish;
+  const delayed=new Promise(resolve=>{finish=resolve;});
+  const planner=await mountPlanner({spaces:[connectedSpace],tasks:[taskFixture],sectionTasks:{'PAIR:pair':delayed},confirmLeave:false});
+  assert.match(await planner.section('Us'),/Opening your planner/);
+  assert.match(await planner.section('Personal'),/Edit Read/);
+  finish([{...taskFixture,title:'Old section result'}]);
+  assert.ok(!(await planner.settle()).includes('Old section result'));
+  planner.navigate('Shared notes');await planner.settle();planner.notePending(true);
+  assert.match(await planner.section('Personal'),/Choose section: Us/);
 });
 
 test('token requests use the selected space and prevent duplicate pending requests', () => {

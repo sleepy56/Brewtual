@@ -10,6 +10,21 @@ All paths below are under `/api/v1`. JSON bodies reject unknown fields. The `cli
 
 **When email delivery is ready:** configure SMTP, set `REQUIRE_EMAIL_VERIFICATION=true` and redeploy. Signup and resend then return `{ "message": "If this address can be registered, check your email.", "verificationRequired": true }` and use the verification flow below. Login, refresh and protected requests reject unverified accounts in this mode, including existing sessions. Existing unverified users can submit signup with their current password to request a link; their password and data remain unchanged.
 
+### Resend setup
+
+The existing Nodemailer transport supports [Resend SMTP](https://resend.com/docs/send-with-smtp). Verify `sleepytanuki.dev` in Resend using the DNS records it supplies, then create a sending API key for that domain. Set these server-side variables locally or in the deployment settings:
+
+```dotenv
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=465
+SMTP_USER=resend
+SMTP_PASSWORD=your-resend-api-key
+SMTP_FROM="Brewtual <hello@sleepytanuki.dev>"
+REQUIRE_EMAIL_VERIFICATION=true
+```
+
+`SMTP_PASSWORD` is the Resend API key; this SMTP integration does not read `RESEND_API_KEY`. Keep the real key out of `.env.example` and source control. Set `APP_WEB_URL` to the actual deployed Brewtual HTTPS origin so verification links return to the app; the sending domain can differ from the website domain. These settings send signup and resend-verification emails. They do not create an inbox or a password-recovery flow. Live delivery needs a verified domain and a real key.
+
 | Method and path | JSON body | Success | Relevant errors |
 | --- | --- | --- | --- |
 | `POST /auth/signup` | `{email,password,client}` | 202 generic body | 400 invalid body, 429 IP limit, 503 mail unavailable when verification is enabled |
