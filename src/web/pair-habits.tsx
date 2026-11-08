@@ -17,13 +17,13 @@ import { BrewtualMark } from './brewtual-mark';
 import { Landing } from './landing';
 import { Connections } from './connections';
 import { InstallApp } from './install-app';
-import { ThemePicker } from './appearance';
+import { ThemePicker, appearances, defaultAppearance } from './appearance';
 import { AppIcon } from './app-icon';
 import type { Goal, Ledger, Pair, Redemption, Reward } from './types';
 import { addLocalDays, localDate, localWeekday, weekStart } from '../server/domain/calendar';
 
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const themes = ['midnight', 'cozy'];
+const themes = appearances.map(theme => theme.id);
 type Tab = 'today' | 'goals' | 'rewards' | 'activity' | 'settings' | 'together';
 const message = (error: unknown) =>
   error instanceof Error ? error.message : 'Something went wrong. Please try again.';
@@ -51,7 +51,7 @@ export default function PairHabits({ verify = false }: { verify?: boolean }) {
   const [showLegacy, setShowLegacy] = useState(false);
   const [ready, setReady] = useState(verify);
   const [error, setError] = useState('');
-  const [theme, setTheme] = useState('midnight');
+  const [theme, setTheme] = useState(defaultAppearance);
   useEffect(() => {
     try {
       const saved = localStorage.getItem('@pair-habits/theme');

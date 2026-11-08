@@ -1,0 +1,174 @@
+.brew-landing { width:min(1360px,90%);margin:auto; }
+.app:has(.brew-landing) > .install-widget { position:relative;inset:auto;width:max-content;max-width:90%;margin:0 auto 32px; }
+.brew-landing svg { width:22px;height:22px;flex-shrink:0; }
+.brew-landing .brand .brew-mark { width:34px;height:34px; }
+.brew-landing .brand span { font-family:var(--font-display);font-weight:600;font-size:30px;letter-spacing:-.05em;color:var(--text); }
+.brew-landing .brand .brand-period { color:var(--action); }
+.brew-nav { min-height:108px;display:flex;align-items:center;justify-content:space-between;gap:32px;border-bottom:1px solid var(--border); }
+.brew-nav nav { display:flex;gap:30px;font-size:12px;color:var(--muted); }
+.brew-nav nav a { padding:12px 0; }
+.brew-nav nav a:hover { color:var(--text); }
+.brew-nav > button { font-size:12px;min-width:126px;display:flex;justify-content:space-between;gap:20px; }
+.brew-hero { display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:5%;padding:84px 0 90px; }
+.brew-intro { position:relative;z-index:1; }
+.brew-intro .eyebrow { display:flex;align-items:center;gap:9px;font-size:10px;letter-spacing:.13em; }
+.brew-dot { height:6px;width:6px;border-radius:50%;background:var(--action);box-shadow:0 0 0 4px color-mix(in srgb,var(--action) 9%,transparent); }
+.brew-intro h1 { font-size:clamp(47px,5.4vw,78px);line-height:1.08;letter-spacing:-.05em;margin:28px 0; }
+.brew-intro h1 em,.brew-rewards h2 em,.brew-note h2 em { color:var(--accent);font-style:normal; }
+.brew-description { font-size:17px;line-height:1.7;max-width:430px; }
+.brew-supporting { font-size:13px;line-height:1.9;color:var(--muted);max-width:410px;margin-top:16px; }
+.brew-hero-actions { display:flex;align-items:center;flex-wrap:wrap;gap:22px;margin-top:30px; }
+.brew-hero-actions .primary,.brew-rewards .primary,.brew-note .primary { display:inline-flex;align-items:center;justify-content:space-between;gap:28px;min-height:52px;padding:14px 22px;border-radius:11px;font-size:12px;font-weight:600; }
+.brew-hero-actions a { display:inline-flex;align-items:center;gap:12px;font-size:11px;color:var(--muted);min-height:44px; }
+.brew-hero-foot { display:flex;align-items:center;gap:14px;margin-top:36px; }
+.brew-hero-foot p { font-size:10px;color:var(--muted);line-height:1.8; }
+.brew-hero-foot strong { font-weight:500;color:var(--text); }
+.brew-avatars { display:flex;padding-left:7px; }
+.brew-avatars i { width:32px;height:32px;margin-left:-7px;display:grid;place-items:center;border:2px solid var(--bg);border-radius:50%;background:var(--hero);color:var(--text);font-size:9px;font-style:normal; }
+.brew-avatars i:nth-child(2) { background:var(--surface2); }
+.brew-avatars i:nth-child(3) { background:color-mix(in srgb,var(--accent) 20%,var(--surface)); }
+.ritual-stage { position:relative;padding:28px 0 26px 12px;min-width:0; }
+.ritual-orbit { position:absolute;inset:-14px 10px 0 -20px;border:1px solid var(--border);border-radius:48% 48% 18px 18px;transform:rotate(6deg);background:radial-gradient(ellipse at 20% 0%,var(--glow-one),transparent 70%); }
+.ritual-flourish { position:absolute;right:-10px;top:-47px;z-index:1;font:90px Georgia,serif;color:var(--secondary);opacity:.6;transform:rotate(15deg); }
+.ritual-stage-label { position:relative;z-index:1;display:flex;justify-content:space-between;gap:12px;margin:0 9px 14px;font-size:8px;letter-spacing:.12em;color:var(--muted); }
+.app .ritual-preview { position:relative;padding:24px;border-radius:20px;background:var(--glass);transform:rotate(-2deg);margin:0;box-shadow:var(--card-shadow),0 20px 50px #4b2f1714; }
+.ritual-preview-header { display:flex;align-items:center;gap:10px; }
+.ritual-preview-header > .brew-mark { width:32px;height:32px; }
+.ritual-preview-header strong { font-size:13px;font-weight:600; }
+.ritual-preview-header small { display:block;font-size:9px;color:var(--muted);margin-top:3px; }
+.preview-avatar { display:grid;place-items:center;width:32px;height:32px;border:1px solid var(--border);border-radius:10px;font-size:11px;margin-left:auto;background:var(--soft); }
+.preview-sections { display:flex;gap:4px;background:var(--soft);padding:4px;border:1px solid var(--border);border-radius:10px;margin:22px 0; }
+.preview-sections button { flex:1;min-width:0;padding:8px 5px;min-height:44px;background:transparent;font-size:10px;color:var(--muted);border-radius:7px; }
+.preview-sections button[aria-pressed='true'] { background:var(--surface);color:var(--text);border-color:var(--border);box-shadow:0 2px 4px #00000008; }
+.ritual-preview-progress { display:flex;align-items:center;justify-content:space-between;gap:14px;padding-bottom:22px;margin-bottom:12px;border-bottom:1px solid var(--border); }
+.ritual-preview-progress .eyebrow { font-size:7px;letter-spacing:.12em; }
+.ritual-preview-progress h2 { font-size:25px;line-height:1.2;max-width:220px;margin:9px 0; }
+.ritual-preview-progress p:last-child { font-size:10px;color:var(--muted); }
+.ritual-preview-progress p strong { color:var(--text);font-weight:600; }
+.brew-progress-ring { display:grid;place-items:center;flex-shrink:0;width:78px;height:78px;border-radius:50%;padding:4px; }
+.brew-progress-ring > span { display:grid;place-items:center;width:100%;height:100%;border-radius:50%;background:var(--surface); }
+.brew-progress-ring .brew-mark { width:39px;height:39px; }
+.ritual-preview-task { display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:13px 0;border:0;border-bottom:1px solid var(--border);border-radius:0;background:transparent;min-height:65px; }
+.preview-task-symbol { display:grid;place-items:center;width:30px;height:32px;border-radius:8px;background:var(--soft);color:var(--accent); }
+.preview-task-symbol svg { width:16px;height:16px; }
+.ritual-preview-task > span:nth-child(2) { min-width:0;flex:1; }
+.ritual-preview-task strong { display:block;font-size:11px;font-weight:500;line-height:1.5; }
+.ritual-preview-task small { display:block;font-size:8px;margin-top:4px;color:var(--muted); }
+.preview-task-check { width:27px;height:27px;flex-shrink:0;border:1px solid var(--border);border-radius:8px;display:grid;place-items:center; }
+.preview-task-check svg { width:16px;height:16px; }
+.ritual-preview-task[aria-pressed='true'] .preview-task-check { background:var(--action);border-color:var(--action);color:var(--action-text); }
+.preview-note { display:flex;align-items:flex-start;gap:12px;border:1px solid var(--border);border-radius:11px;background:var(--soft);padding:15px;margin-top:20px; }
+.preview-note > svg { width:16px;height:16px;color:var(--accent); }
+.preview-note .eyebrow { font-size:7px;margin-bottom:6px;letter-spacing:.1em; }
+.preview-note p:last-child { font-size:10px;color:var(--muted);line-height:1.7; }
+.ritual-preview-footer { display:flex;justify-content:space-between;gap:8px;padding-top:18px;font-size:8px;color:var(--muted); }
+.ritual-reward-stamp { position:relative;z-index:2;display:flex;align-items:center;gap:12px;width:max-content;max-width:90%;margin:-8px -20px 0 auto;padding:15px 22px;background:var(--rail-bg);color:var(--rail-text);border:1px solid var(--border);border-radius:12px;box-shadow:var(--card-shadow);transform:rotate(3deg);font-size:10px;line-height:1.8; }
+.ritual-reward-stamp svg { color:var(--rail-accent); }
+.ritual-reward-stamp strong { font-weight:500; }
+.brew-promises { display:flex;justify-content:space-around;gap:20px;padding:25px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border); }
+.brew-promises > span { display:flex;align-items:center;gap:10px;font-size:11px;color:var(--muted); }
+.brew-promises svg { width:18px;height:18px;color:var(--accent); }
+.brew-section { padding:80px 0;scroll-margin-top:24px; }
+.brew-section-heading { display:flex;justify-content:space-between;align-items:flex-end;gap:30px;margin-bottom:35px; }
+.brew-section .eyebrow,.brew-note .eyebrow { font-size:9px;letter-spacing:.13em;margin-bottom:14px; }
+.brew-section h2 { font-size:clamp(32px,3.5vw,45px);line-height:1.15; }
+.brew-section-heading > p { color:var(--muted);font-size:12px;line-height:1.9; }
+.brew-steps,.brew-spaces { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px; }
+.app .brew-steps .card,.app .brew-spaces .card { margin:0;padding:30px;border-radius:16px;background:var(--glass); }
+.brew-steps article > div { display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--accent); }
+.brew-steps h3 { font-family:var(--font-display);font-size:25px;line-height:1.3;margin:28px 0 14px; }
+.brew-steps article > p,.brew-spaces article > p:not(.eyebrow) { font-size:12px;color:var(--muted);line-height:1.9; }
+.brew-spaces h3 { font-family:var(--font-display);font-size:29px;line-height:1.25;max-width:240px;margin-bottom:16px; }
+.brew-space-symbol { display:grid;place-items:center;width:48px;height:48px;background:var(--soft);border:1px solid var(--border);border-radius:13px;color:var(--accent);margin-bottom:30px; }
+.brew-spaces .text-button { margin-top:22px;padding:0;min-height:44px;font-size:11px;display:flex;justify-content:space-between;width:100%;align-items:center;color:var(--action);font-weight:600; }
+.brew-rewards { display:grid;grid-template-columns:1fr 1fr;gap:10%;align-items:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border); }
+.brew-rewards > div > p:not(.eyebrow) { color:var(--muted);font-size:13px;line-height:1.9;max-width:400px;margin:24px 0; }
+.brew-reward-menu { padding:30px;transform:rotate(2deg);background:var(--glass);border-radius:18px; }
+.brew-reward-menu h3 { font-family:var(--font-display);font-size:32px;padding-bottom:24px;border-bottom:1px solid var(--border); }
+.brew-menu-item { display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);padding:20px 0; }
+.brew-menu-item > svg { color:var(--accent);width:19px;height:19px; }
+.brew-menu-item > div { min-width:0;flex:1; }
+.brew-menu-item strong { display:block;font-family:var(--font-display);font-size:19px;font-weight:500; }
+.brew-menu-item small { display:block;font-size:9px;color:var(--muted);line-height:1.6;margin-top:6px; }
+.brew-menu-item > span { display:flex;align-items:center;gap:4px;font-size:12px;color:var(--accent); }
+.brew-menu-item > span svg { width:13px;height:13px; }
+.brew-reward-menu .brew-menu-foot { font-size:9px;color:var(--muted);margin:20px 0 0;line-height:1.7; }
+.brew-themes .appearance-picker { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.brew-note { position:relative;text-align:center;padding:85px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border); }
+.brew-note > span { display:block;font-size:45px;color:var(--secondary);margin-bottom:22px; }
+.brew-note h2 { font-size:clamp(38px,4.6vw,62px);line-height:1.15; }
+.brew-note > p:not(.eyebrow) { color:var(--muted);font-size:13px;max-width:435px;margin:24px auto 28px; }
+.brew-faq { display:grid;grid-template-columns:1fr 1.4fr;gap:10%; }
+.brew-faq details { border-bottom:1px solid var(--border);padding:21px 0; }
+.brew-faq details:first-child { padding-top:0; }
+.brew-faq summary { display:flex;justify-content:space-between;gap:18px;list-style:none;cursor:pointer;font-size:13px;min-height:32px;align-items:center; }
+.brew-faq summary::-webkit-details-marker { display:none; }
+.brew-faq summary > span { color:var(--accent);font-size:18px; }
+.brew-faq details[open] summary > span { transform:rotate(45deg); }
+.brew-faq details p { font-size:12px;line-height:1.9;color:var(--muted);padding-top:18px; }
+.brew-footer { display:flex;align-items:center;justify-content:space-between;gap:24px;padding:25px 0 70px;border-top:1px solid var(--border); }
+.brew-footer p { font-size:10px;color:var(--muted);line-height:1.8; }
+.brew-footer > a:last-child { font-size:10px;color:var(--muted);padding:12px 0; }
+@media(max-width:1000px) {
+  .brew-nav nav { gap:18px; }
+  .brew-hero { gap:4%;padding:64px 0; }
+  .brew-intro h1 { font-size:clamp(43px,5.5vw,61px); }
+  .brew-description { font-size:15px; }
+  .app .ritual-preview { padding:20px; }
+  .ritual-stage-label { font-size:7px;letter-spacing:.06em; }
+  .ritual-stage-label > span:last-child { display:none; }
+  .app .brew-steps .card,.app .brew-spaces .card { padding:24px; }
+  .brew-spaces h3 { font-size:25px; }
+  .brew-rewards { gap:6%; }
+  .brew-themes .appearance-picker { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:760px) {
+  .brew-landing { width:88%; }
+  .brew-nav { min-height:82px;gap:14px; }
+  .brew-nav nav { display:none; }
+  .brew-nav > button { min-width:0;padding:9px 13px;gap:14px; }
+  .brew-landing .brand span { font-size:27px; }
+  .brew-hero { grid-template-columns:1fr;padding:46px 0 58px;gap:56px; }
+  .brew-intro h1 { font-size:clamp(44px,9.4vw,70px);margin:24px 0; }
+  .brew-intro .eyebrow { font-size:8px;letter-spacing:.1em; }
+  .brew-description { font-size:16px;max-width:420px; }
+  .brew-supporting { font-size:12px; }
+  .brew-hero-actions { gap:15px;margin-top:24px; }
+  .brew-hero-actions .primary { font-size:12px; }
+  .brew-hero-foot { margin-top:28px; }
+  .ritual-stage { max-width:480px;width:100%;margin:auto;padding-left:0; }
+  .ritual-stage-label > span:last-child { display:block; }
+  .ritual-orbit { inset:0 16px -8px;border-radius:40% 40% 18px 18px;transform:rotate(3deg); }
+  .ritual-flourish { right:0;top:-36px;font-size:70px; }
+  .app .ritual-preview { padding:22px;transform:rotate(-1deg); }
+  .ritual-reward-stamp { margin-right:-8px;font-size:9px;padding:13px 17px; }
+  .brew-promises { flex-direction:column;align-items:center;gap:15px;padding:22px 0; }
+  .brew-section { padding:50px 0; }
+  .brew-section-heading { flex-direction:column;align-items:flex-start;gap:18px;margin-bottom:26px; }
+  .brew-section h2 { font-size:35px; }
+  .brew-steps,.brew-spaces { grid-template-columns:1fr;gap:14px; }
+  .app .brew-steps .card,.app .brew-spaces .card { padding:27px; }
+  .brew-steps h3 { margin-top:22px; }
+  .brew-spaces h3 { font-size:28px;max-width:none; }
+  .brew-space-symbol { margin-bottom:22px; }
+  .brew-rewards,.brew-faq { grid-template-columns:1fr;gap:35px; }
+  .brew-reward-menu { transform:rotate(1deg);padding:25px; }
+  .brew-themes .appearance-picker { grid-template-columns:1fr; }
+  .brew-note { padding:55px 0; }
+  .brew-faq { gap:30px; }
+  .brew-footer { flex-wrap:wrap;padding-bottom:90px; }
+  .brew-footer p { display:none; }
+}
+@media(max-width:370px) {
+  .brew-landing { width:89%; }
+  .brew-landing .brand span { font-size:24px; }
+  .brew-nav > button { font-size:11px;padding:8px 10px;gap:10px; }
+  .brew-intro h1 { font-size:36px; }
+  .brew-hero-actions { align-items:flex-start;flex-direction:column;gap:8px; }
+  .app .ritual-preview { padding:17px; }
+  .ritual-stage-label { font-size:6px; }
+  .ritual-preview-progress h2 { font-size:22px; }
+  .brew-progress-ring { width:63px;height:63px; }
+  .ritual-preview-footer { font-size:7px; }
+  .brew-hero { gap:45px; }
+}

@@ -228,14 +228,17 @@ test('session restoration shows loading before the landing page', () => {
   vm.runInNewContext(code, { exports, require(name) {
     if (name === 'react') return hooks;
     if (name === './install-app') return { InstallApp: () => null };
+    if (name === './appearance') return appearance;
     if (name.startsWith('./') || name.startsWith('../')) return {};
     return require(name);
   } });
-  assert.match(renderToStaticMarkup(exports.default({})), /Opening your shared space/);
+  const html=renderToStaticMarkup(exports.default({}));
+  assert.match(html, /Opening your shared space/);
+  assert.match(html, /data-theme="brewtual"/);
 });
 
-test('both appearances restore after reload and changing themes saves the choice', async () => {
-  for (const savedTheme of ['midnight', 'cozy']) {
+test('all seven appearances restore after reload and changing themes saves the choice', async () => {
+  for (const savedTheme of [...appearance.appearances.map(item=>item.id), 'unavailable-theme']) {
     const state = [], effects = [], saved = new Map([['@pair-habits/theme', savedTheme]]);
     let cursor = 0, first = true, plannerProps;
     const hooks = { ...React,
@@ -251,19 +254,55 @@ test('both appearances restore after reload and changing themes saves the choice
       if (name === './client') return { refreshSession: async () => ({ id:'alice',email:'alex@example.test' }) };
       if (name === './planner') return { Planner: props => { plannerProps = props; return null; } };
       if (name === './install-app') return { InstallApp: () => null };
-      if (name.startsWith('./') || name.startsWith('../')) return {};
+      if (name === './appearance') return appearance;
+    if (name.startsWith('./') || name.startsWith('../')) return {};
       return require(name);
     } });
     function render() { cursor = 0; return renderToStaticMarkup(exports.default({})); }
     render(); first = false;
     effects.splice(0).forEach(effect => effect());
     await new Promise(resolve => setImmediate(resolve));
-    assert.match(render(), new RegExp(`data-theme="${savedTheme}"`));
+    const expected=appearance.appearances.some(item=>item.id===savedTheme)?savedTheme:appearance.defaultAppearance;
+    assert.match(render(), new RegExp(`data-theme="${expected}"`));
     const next = savedTheme === 'cozy' ? 'midnight' : 'cozy';
     plannerProps.setTheme(next);
     assert.match(render(), new RegExp(`data-theme="${next}"`));
     assert.equal(saved.get('@pair-habits/theme'), next);
   }
+});
+
+test('Daily Ritual is the new-visitor default while Solaris and Cozy stay selectable', () => {
+  assert.equal(appearance.defaultAppearance,'brewtual');
+  assert.equal(appearance.appearances.length,7);
+  assert.equal(new Set(appearance.appearances.map(item=>item.id)).size,7);
+  const html=renderToStaticMarkup(appearance.ThemePicker({theme:appearance.defaultAppearance,setTheme(){}}));
+  for (const item of appearance.appearances) assert.ok(html.includes(item.name));
+  const options=React.Children.toArray(appearance.ThemePicker({theme:'midnight',setTheme(){}}).props.children);
+  assert.equal(options.filter(item=>item.props['aria-pressed']).length,1);
+  assert.equal(options.find(item=>item.props['aria-pressed']).props.className,'appearance-option appearance-midnight');
+});
+
+test('landing preview keeps separate progress for Personal, Partner and Group, and all entry buttons work', () => {
+  let entered=0;
+  const enter=()=>{entered++;};
+  const landing=mountPart('Landing',{enter,theme:'brewtual',setTheme(){}});
+  assert.match(landing.html(),/Brew better days/);
+  assert.match(landing.html(),/2 of 3 preview rituals complete/);
+  landing.button('Take a little walk').props.onClick();
+  assert.match(landing.html(),/3 of 3 preview rituals complete/);
+  landing.button('Partner').props.onClick();
+  assert.match(landing.html(),/Plan our Sunday/);
+  assert.match(landing.html(),/1 of 3 preview rituals complete/);
+  landing.button('Group').props.onClick();
+  assert.match(landing.html(),/The next book-club chapter/);
+  landing.button('Personal').props.onClick();
+  assert.match(landing.html(),/3 of 3 preview rituals complete/);
+  const entries=landing.elements().filter(node=>node.type==='button' && node.props.onClick===enter);
+  assert.ok(entries.length>=6); entries.forEach(button=>button.props.onClick());
+  assert.equal(entered,entries.length);
+  const html=landing.html();
+  for(const anchor of ['how','together','themes','top']) assert.ok(html.includes(`id="${anchor}"`));
+  assert.match(html,/only the owner can update the task/);
 });
 
 test('an unconfirmed sign-out keeps the account visible and offers a safe retry', async () => {
@@ -280,6 +319,7 @@ test('an unconfirmed sign-out keeps the account visible and offers a safe retry'
     if(name==='./planner')return {Planner};
     if(name==='./landing')return {Landing:()=>React.createElement('p',null,'Public landing')};
     if(name==='./install-app')return {InstallApp:()=>null};
+    if(name==='./appearance')return appearance;
     if(name.startsWith('./')||name.startsWith('../'))return {};
     return require(name);
   }});
@@ -298,13 +338,15 @@ function mountPart(part, props, options = {}) {
   let cursor = 0, first = true;
   const hooks = { ...React, useRef(initial) { const slot=cursor++; return refs[slot] ??= {current:initial}; }, useEffect(fn) { if(first) effects.push(fn); }, useState(initial) { const slot = cursor++; if (!(slot in state)) state[slot] = initial; return [state[slot], value => { state[slot] = typeof value === 'function' ? value(state[slot]) : value; }]; } };
   const exports = {};
-  const source = part === 'Connections' ? readFileSync(require.resolve('../src/web/connections.tsx'), 'utf8') : readFileSync(require.resolve('../src/web/planner.tsx'), 'utf8') + '\nexport { TaskForm, TokenRequest, Market };';
+  const source = part === 'Connections' ? readFileSync(require.resolve('../src/web/connections.tsx'), 'utf8') : part === 'Landing' ? readFileSync(require.resolve('../src/web/landing.tsx'),'utf8') : readFileSync(require.resolve('../src/web/planner.tsx'), 'utf8') + '\nexport { TaskForm, TokenRequest, Market };';
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   const storage = new Map();
   vm.runInNewContext(code, { exports, Intl, Error, navigator: {}, window: { confirm: () => true }, crypto: { randomUUID: () => 'retry-key' }, sessionStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) }, require(name) {
     if (name === 'react') return hooks;
     if (name === './client') return { api: async (...args) => { calls.push(args); if (options.api) return options.api(...args); if (options.fail?.()) throw new Error('Network interrupted'); } };
     if (name === './app-icon') return icons;
+    if (name === './appearance') return appearance;
+    if (name === './brewtual-mark') return {BrewtualMark:()=>React.createElement('svg')};
     if (name.startsWith('./')) return {};
     return require(name);
   } });
@@ -364,8 +406,8 @@ test('the header selects task sections while theme choices stay in Settings', as
   let selected;
   const picker = appearance.ThemePicker({ theme:'cozy', setTheme:value => { selected = value; } });
   const options = React.Children.toArray(picker.props.children);
-  assert.equal(options[1].props['aria-pressed'], true);
-  options[0].props.onClick();
+  assert.equal(options[appearance.appearances.findIndex(item=>item.id==='cozy')].props['aria-pressed'], true);
+  options[appearance.appearances.findIndex(item=>item.id==='midnight')].props.onClick();
   assert.equal(selected, 'midnight');
 });
 

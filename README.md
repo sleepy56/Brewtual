@@ -22,7 +22,7 @@ Whether you’re reading more, moving a little each day, or working toward a big
 
 **Give milestones something to look forward to.** Offer a little promise, like coffee when a friend finishes a goal. Friends choose whether to join in, and you arrange the celebration together.
 
-**Make the space your own.** Choose Solaris, with dark glass cards and violet/cyan glows, or Cozy, with warm cream, coffee, and rose tones. Switch using the choices in Settings or the desktop sidebar; your browser remembers the choice. The website adapts to desktop and phone screens, and you can add it to your phone’s home screen.
+**Make the space your own.** Daily Ritual is the Brewtual default: oat and espresso tones, frosted surfaces, and deep teal actions. Choose Secret Garden, Little Things, After Hours, or Social Club for a different atmosphere. Solaris and Cozy remain available. Use Settings or the appearance popup in the desktop sidebar; your browser remembers your choice. See [the seven themes](docs/APPEARANCE.md). The website adapts to desktop and phone screens, and you can add it to your phone’s home screen.
 
 ## Find your together
 

@@ -1,0 +1,174 @@
+/* Theme colors separate the atmosphere from the color reserved for actions. */
+.app {
+  --font-ui: 'DM Sans', Arial, sans-serif;
+  --font-display: 'DM Sans', Arial, sans-serif;
+  --action: #f6ad91;
+  --action-text: #281d22;
+  --action-gradient: linear-gradient(135deg, #fac6ac, #ee9d88);
+  --brand-main: #71dce8;
+  --brand-secondary: #bca2e6;
+  --glass-edge: #ffffff38;
+  --rail-bg: #171222b8;
+  --rail-text: var(--text);
+  --rail-muted: var(--muted);
+  --rail-active: var(--soft);
+  --rail-accent: var(--accent);
+  --theme-motif: '✦';
+  --glass: #ffffff0b;
+  --card-shadow: 0 8px 24px #00000018, inset 0 1px 0 #ffffff24;
+}
+.app[data-theme='brewtual'] {
+  --bg: #f4ebdf; --surface: #fffaf3; --surface2: #e8d9c8;
+  --text: #3c2923; --muted: #746257; --border: #6e4b2e33;
+  --accent: #845536; --accent-text: #fffaf3; --secondary: #9a6b43;
+  --action: #006c60; --action-text: #ffffff;
+  --action-gradient: linear-gradient(135deg, #087c6d, #006156);
+  --soft: #8c5d3210; --hero: #e5d2b9; --hero-text: #3c2923;
+  --danger: #a23531; --focus: #006c60;
+  --glow-one: #c18d4c24; --glow-two: #b7c3a826;
+  --glass: #fffaf39e; --nav-bg: #fff9f0ed; --glass-edge: #ffffffdf;
+  --gradient: linear-gradient(135deg, #ac7a4f, #62402f);
+  --card-shadow: 0 7px 22px #5c37120c, inset 0 1px 0 #ffffffed;
+  --brand-main: #5b3929; --brand-secondary: #af7a4d;
+  --rail-bg: #3c2923f5; --rail-text: #fcf2e5; --rail-muted: #d2bbab;
+  --rail-active: #ffffff12; --rail-accent: #92d5ba;
+  --font-display: 'Fraunces', Georgia, serif; --theme-motif: '◒';
+  color-scheme: light;
+}
+.app[data-theme='garden'] {
+  --bg: #f1f0df; --surface: #fcfbed; --surface2: #e0e5cd;
+  --text: #294436; --muted: #5c6954; --border: #4a634137;
+  --accent: #446344; --accent-text: #ffffff; --secondary: #758255;
+  --action: #993f57; --action-text: #ffffff;
+  --action-gradient: linear-gradient(135deg, #a74761, #87354c);
+  --soft: #61754213; --hero: #dce3c6; --hero-text: #294436;
+  --danger: #a23531; --focus: #993f57;
+  --glow-one: #b8c89740; --glow-two: #cfc29028;
+  --glass: #fffff19c; --nav-bg: #f5f5e5f0; --glass-edge: #ffffffde;
+  --gradient: linear-gradient(135deg, #a0ad72, #42664d);
+  --card-shadow: 0 6px 22px #3446200d, inset 0 1px 0 #ffffffed;
+  --brand-main: #294c3c; --brand-secondary: #81924e;
+  --rail-bg: #294c3cf5; --rail-text: #f9f5e5; --rail-muted: #c6d1b1;
+  --rail-active: #ffffff12; --rail-accent: #e9c4b8;
+  --font-ui: 'Nunito Sans', Arial, sans-serif;
+  --font-display: 'Cormorant Garamond', Georgia, serif; --theme-motif: '❧';
+  color-scheme: light;
+}
+.app[data-theme='little-things'] {
+  --bg: #fff4ee; --surface: #fffaf8; --surface2: #efe4f2;
+  --text: #4f3e50; --muted: #786576; --border: #956f9630;
+  --accent: #8b5d85; --accent-text: #ffffff; --secondary: #9c748a;
+  --action: #215c64; --action-text: #ffffff;
+  --action-gradient: linear-gradient(135deg, #2a6e72, #1b525b);
+  --soft: #a478aa10; --hero: #eedbe5; --hero-text: #4f3e50;
+  --danger: #a2354b; --focus: #215c64;
+  --glow-one: #e8ac9f32; --glow-two: #c1ace83b;
+  --glass: #fffaf8aa; --nav-bg: #fcf1f1ed; --glass-edge: #ffffffef;
+  --gradient: linear-gradient(135deg, #c6a7d0, #ae798f);
+  --card-shadow: 0 6px 24px #81537f0d, inset 0 1px 0 #ffffffef;
+  --brand-main: #8b5d85; --brand-secondary: #d2967e;
+  --rail-bg: #eee0edbd; --rail-text: #4f3e50; --rail-muted: #786576;
+  --rail-active: #ffffff80; --rail-accent: #215c64;
+  --font-ui: 'DM Sans', Arial, sans-serif;
+  --font-display: 'Plus Jakarta Sans', Arial, sans-serif; --theme-motif: '♡';
+  color-scheme: light;
+}
+.app[data-theme='after-hours'] {
+  --bg: #19191d; --surface: #272328; --surface2: #3c2d34;
+  --text: #f6ece3; --muted: #c6b4b0; --border: #dab69b32;
+  --accent: #d6a884; --accent-text: #251b17; --secondary: #d6a884;
+  --action: #f2b378; --action-text: #251b17;
+  --action-gradient: linear-gradient(135deg, #f6c38f, #e3a369);
+  --soft: #c48c6b13; --hero: #483037; --hero-text: #f6ece3;
+  --danger: #ffb6b4; --focus: #f2b378;
+  --glow-one: #7e3e4738; --glow-two: #a46b3424;
+  --glass: #ffffff08; --nav-bg: #30262ded; --glass-edge: #e4c6b033;
+  --gradient: linear-gradient(135deg, #9d6660, #ddb58a);
+  --card-shadow: 0 8px 28px #00000028, inset 0 1px 0 #e4c6b027;
+  --brand-main: #e7c7a8; --brand-secondary: #b57c62;
+  --rail-bg: #1e1a20e8; --rail-text: #f6ece3; --rail-muted: #c6b4b0;
+  --rail-active: #ffffff0a; --rail-accent: #f2b378;
+  --font-ui: 'Manrope', Arial, sans-serif;
+  --font-display: 'Playfair Display', Georgia, serif; --theme-motif: '☾';
+  color-scheme: dark;
+}
+.app[data-theme='social-club'] {
+  --bg: #fff5db; --surface: #fffbea; --surface2: #f4dfb6;
+  --text: #563823; --muted: #755a42; --border: #a6653438;
+  --accent: #a84429; --accent-text: #ffffff; --secondary: #b34c2f;
+  --action: #2449b7; --action-text: #ffffff;
+  --action-gradient: linear-gradient(135deg, #315cce, #2542a7);
+  --soft: #be7c3212; --hero: #f7db9d; --hero-text: #563823;
+  --danger: #b02929; --focus: #2449b7;
+  --glow-one: #efb04c2e; --glow-two: #ec8d702b;
+  --glass: #fffbeaab; --nav-bg: #fff6dcf0; --glass-edge: #ffffffed;
+  --gradient: linear-gradient(135deg, #edaf5a, #b34c2f);
+  --card-shadow: 0 5px 0 #9d5f2110, 0 8px 22px #9d5f210a, inset 0 1px 0 #fffffff5;
+  --brand-main: #a84429; --brand-secondary: #cc9d42;
+  --rail-bg: #b34c2ff5; --rail-text: #fff9e7; --rail-muted: #ffe2b4;
+  --rail-active: #ffffff18; --rail-accent: #fff0af;
+  --font-ui: 'Space Grotesk', Arial, sans-serif;
+  --font-display: 'Fredoka', Arial, sans-serif; --theme-motif: '✳';
+  color-scheme: light;
+}
+.app[data-theme='cozy'] {
+  --action: #355b48; --action-text: #ffffff;
+  --action-gradient: linear-gradient(135deg, #436d57, #315442);
+  --brand-main: #98574d; --brand-secondary: #c38e72;
+  --rail-bg: #fffaf36e; --glass-edge: #ffffffdf;
+  --font-display: Georgia, 'Times New Roman', serif; --theme-motif: '♡';
+}
+.app,.app .planner-workspace { font-family:var(--font-ui); }
+.app[data-theme] h1,.app[data-theme] h2,.app[data-theme] .planner-home .section-heading h2 { font-family:var(--font-display); }
+.app[data-theme] .primary { background:var(--action-gradient);color:var(--action-text);border-color:var(--action);box-shadow:0 4px 14px color-mix(in srgb,var(--action) 18%,transparent); }
+.app .planner-workspace .bottom-nav .nav-add,.app .focus-check.is-checked { background:var(--action-gradient);color:var(--action-text);border-color:var(--action); }
+.app input[type='checkbox'] { accent-color:var(--action); }
+.app .dialog .day-picker { gap:8px; }
+.app .sidebar { background:var(--rail-bg); }
+.app .sidebar .brand span,.app .sidebar nav button { color:var(--rail-text); }
+.app .sidebar > .eyebrow,.app .sidebar-foot > p,.app .sidebar nav button svg { color:var(--rail-muted); }
+.app .sidebar nav button.active { background:var(--rail-active);border-color:color-mix(in srgb,var(--rail-text) 14%,transparent);color:var(--rail-text); }
+.app .sidebar nav button.active svg { color:var(--rail-accent); }
+.app[data-theme='brewtual'] .sidebar .brew-mark { --brand-main:#f0d8b8;--brand-secondary:#c59c72; }
+.app[data-theme='garden'] .sidebar .brew-mark { --brand-main:#e8e6c6;--brand-secondary:#adbd86; }
+.app[data-theme='social-club'] .sidebar .brew-mark { --brand-main:#fff0cf;--brand-secondary:#f0be76; }
+.app :is(.card,.focus-card,.balance-card,.together-banner,.auth-card,.appearance-option,.collection-overview>span,.notes-layout,.market-selector,.connection-card) { backdrop-filter:blur(16px) saturate(125%);border-top-color:var(--glass-edge);box-shadow:var(--card-shadow); }
+.app .dialog,.appearance-popover { background:var(--nav-bg);backdrop-filter:blur(28px) saturate(135%);border-top-color:var(--glass-edge); }
+.app .section-options,.app .section-menu nav { background:var(--nav-bg);backdrop-filter:blur(24px) saturate(135%);border-top-color:var(--glass-edge); }
+.app .together-banner { position:relative;overflow:hidden; }
+.app .banner-motif { position:absolute;right:72px;bottom:-34px;font:110px Georgia,serif;color:var(--secondary);opacity:.09;pointer-events:none; }
+.banner-motif::before { content:var(--theme-motif); }
+.app[data-theme='garden'] .focus-card,.app[data-theme='garden'] .card { border-radius:7px 19px 7px 19px; }
+.app[data-theme='little-things'] .focus-card,.app[data-theme='little-things'] .card { border-radius:18px; }
+.app[data-theme='social-club'] .focus-card,.app[data-theme='social-club'] .card { border-radius:13px; }
+.app[data-theme='after-hours'] .balance-value { font-family:var(--font-display); }
+.app .appearance-picker { grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px; }
+.app .appearance-option { min-height:92px;position:relative; }
+.app .appearance-option small { max-width:none; }
+.app .appearance-swatch { display:grid;position:relative;overflow:hidden;min-width:42px;box-shadow:inset 0 0 0 1px #0000000d; }
+.appearance-swatch > span { position:relative;z-index:1; }
+.appearance-swatch > i { position:absolute;bottom:0;left:0;width:50%;height:7px; }
+.appearance-swatch > i:last-child { left:50%; }
+.appearance-trigger { display:flex;align-items:center;gap:10px;width:100%;font-size:12px;min-height:44px; }
+.appearance-trigger > span:first-child { color:var(--action);font-size:20px; }
+.appearance-trigger > span:last-child { margin-left:auto; }
+.app .sidebar .appearance-trigger { color:var(--rail-text);background:var(--rail-active);border-color:color-mix(in srgb,var(--rail-text) 16%,transparent); }
+.app .sidebar .appearance-trigger > span:first-child { color:var(--rail-accent); }
+.app .sidebar .brew-mark { --action:var(--rail-accent); }
+.appearance-popover { inset:0;margin:auto;width:min(750px,calc(100vw - 32px));max-height:calc(100dvh - 40px);overflow:auto;padding:28px;border:1px solid var(--border);border-radius:20px;color:var(--text);box-shadow:0 24px 90px #0005; }
+.appearance-popover::backdrop { background:#10131570;backdrop-filter:blur(5px); }
+.appearance-popover h2 { font-size:28px;margin:6px 0; }
+.appearance-popover > .row { flex-wrap:nowrap;align-items:flex-start;gap:16px; }
+.appearance-popover > .row > div { min-width:0; }
+.appearance-popover > .small { margin:10px 0 22px; }
+.appearance-popover .row > button { flex-shrink:0;width:44px;padding:0;font-size:24px; }
+.auth-navigation > .appearance-trigger { width:auto;min-width:166px; }
+@media(max-width:600px) {
+  .app .appearance-picker { grid-template-columns:1fr; }
+  .appearance-popover { padding:20px; }
+  .appearance-popover h2 { font-size:24px; }
+  .app .appearance-option { padding:14px;min-height:86px;flex-wrap:nowrap; }
+  .app .appearance-check { display:block; }
+  .auth-navigation { gap:12px; }
+  .auth-navigation > .appearance-trigger { min-width:0;width:auto;max-width:180px; }
+}
